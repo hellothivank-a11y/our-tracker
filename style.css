@@ -1,117 +1,68 @@
 /* ==========================================================================
-   Nexus Studies Workspace Stylesheet — Production Release
-   Authentic Notion Design System & Soft Pastel Palette Tokens
+   Nexus Design System Stylesheet — Authentic Notion Palette & Architecture
+   Polymorphic Multi-View Engine: Board, Dynamic Table, Media Hub, Timeline, Calendar, To-Do
+   View Tab Management, Priority Engine & Customizable Data Table Engine
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
-   1. CSS Custom Properties & Design Tokens
+   1. CSS Custom Properties for Theming
    -------------------------------------------------------------------------- */
 :root {
-  --bg-canvas: #FFFFFF;
-  --bg-sidebar: #F7F7F5;
+  /* Crisp Canvas & Cards */
+  --bg-canvas: #F8F9FA;
+  --bg-sidebar: #F1F3F5;
   --bg-surface: #FFFFFF;
-  --bg-surface-subtle: #F1F1EF;
+  --bg-surface-subtle: #F1F5F9;
   --bg-popover: #FFFFFF;
   --bg-input: #FFFFFF;
-  --border-subtle: #E9E9E7;
-  --border-hover: #D7D7D5;
-  --text-primary: #37352F;
-  --text-secondary: #787774;
-  --text-muted: #9B9A97;
-  --scrollbar-thumb: #D3D3D0;
-  --scrollbar-thumb-hover: #B4B4B0;
-  --row-hover: rgba(55, 53, 47, 0.04);
-  --row-active: rgba(55, 53, 47, 0.08);
-  --header-bg: rgba(255, 255, 255, 0.92);
-  --table-header-bg: #FAFAFA;
-  --timeline-track-bg: rgba(55, 53, 47, 0.02);
-  --timeline-grid-line: #EDEDEB;
 
-  /* Notion Authentic Pastel Tokens (Light Mode) */
-  --notion-gray-bg: #E3E2E0;
-  --notion-gray-text: #374151;
+  /* Sharpened High-Contrast Borders */
+  --border-subtle: #D8DEE4;  /* Crisp definition for card edges */
+  --border-hover: #94A3B8;
 
-  --notion-brown-bg: #EEE0DA;
-  --notion-brown-text: #78350F;
+  /* Deep High-Legibility Typography */
+  --text-primary: #0F172A;   /* Pure crisp slate-black */
+  --text-secondary: #334155; /* Deep readable charcoal (Never washed-out) */
+  --text-muted: #64748B;     /* Sharp secondary contrast */
 
-  --notion-orange-bg: #FADEC9;
-  --notion-orange-text: #9A3412;
-
-  --notion-yellow-bg: #FDECC8;
-  --notion-yellow-text: #854D0E;
-
-  --notion-green-bg: #DBEDDB;
-  --notion-green-text: #166534;
-
-  --notion-blue-bg: #D3E5EF;
-  --notion-blue-text: #1E40AF;
-
-  --notion-purple-bg: #E8DEEE;
-  --notion-purple-text: #5B21B6;
-
-  --notion-pink-bg: #F5E0E9;
-  --notion-pink-text: #9D174D;
-
-  --notion-red-bg: #FFE2DD;
-  --notion-red-text: #991B1B;
+  --scrollbar-thumb: #CBD5E1;
+  --scrollbar-thumb-hover: #94A3B8;
+  --row-hover: rgba(15, 23, 42, 0.04);
+  --row-active: rgba(15, 23, 42, 0.08);
+  --header-bg: rgba(248, 249, 250, 0.92);
+  --table-header-bg: #F1F5F9;
+  --timeline-track-bg: rgba(15, 23, 42, 0.03);
+  --timeline-grid-line: #D8DEE4;
 
   color-scheme: light;
 }
 
 html.dark {
-  --bg-canvas: #191919;
-  --bg-sidebar: #131313;
-  --bg-surface: #202020;
-  --bg-surface-subtle: #262626;
-  --bg-popover: #252525;
-  --bg-input: #202020;
-  --border-subtle: #2F2F2F;
-  --border-hover: #3F3F3F;
-  --text-primary: #ECECEC;
-  --text-secondary: #9B9B9B;
-  --text-muted: #6B6B6B;
-  --scrollbar-thumb: #333333;
-  --scrollbar-thumb-hover: #4F4F4F;
-  --row-hover: rgba(255, 255, 255, 0.045);
-  --row-active: rgba(255, 255, 255, 0.08);
-  --header-bg: rgba(25, 25, 25, 0.92);
-  --table-header-bg: #1C1C1C;
+  --bg-canvas: #090A0F;
+  --bg-sidebar: #0D0E12;
+  --bg-surface: #12141C;
+  --bg-surface-subtle: #181B24;
+  --bg-popover: #181A20;
+  --bg-input: #12141C;
+  --border-subtle: #222634;
+  --border-hover: #32384A;
+  --text-primary: #F4F4F5;
+  --text-secondary: #A1A1AA;
+  --text-muted: #71717A;
+  --scrollbar-thumb: #27272A;
+  --scrollbar-thumb-hover: #3F3F46;
+  --row-hover: rgba(255, 255, 255, 0.04);
+  --row-active: rgba(255, 255, 255, 0.07);
+  --header-bg: rgba(9, 10, 15, 0.88);
+  --table-header-bg: #141720;
   --timeline-track-bg: rgba(255, 255, 255, 0.02);
-  --timeline-grid-line: #2A2A2A;
-
-  /* Notion Authentic Pastel Tokens (Dark Mode) */
-  --notion-gray-bg: #37352F;
-  --notion-gray-text: #D4D4D8;
-
-  --notion-brown-bg: #43291F;
-  --notion-brown-text: #D7A98C;
-
-  --notion-orange-bg: #593A1D;
-  --notion-orange-text: #F0A06D;
-
-  --notion-yellow-bg: #53461D;
-  --notion-yellow-text: #FDE047;
-
-  --notion-green-bg: #274536;
-  --notion-green-text: #86CDA5;
-
-  --notion-blue-bg: #243D54;
-  --notion-blue-text: #7BB8E8;
-
-  --notion-purple-bg: #3E2B56;
-  --notion-purple-text: #C49DE8;
-
-  --notion-pink-bg: #4E273A;
-  --notion-pink-text: #E58BAC;
-
-  --notion-red-bg: #522E2A;
-  --notion-red-text: #FCA5A5;
+  --timeline-grid-line: #222634;
 
   color-scheme: dark;
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   background-color: var(--bg-canvas);
   color: var(--text-primary);
@@ -122,8 +73,8 @@ body {
    2. Scrollbars
    -------------------------------------------------------------------------- */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -145,9 +96,8 @@ body {
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(3px) scale(0.99);
+    transform: translateY(4px) scale(0.985);
   }
-
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -155,39 +105,65 @@ body {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.12s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.14s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* --------------------------------------------------------------------------
    4. Sidebar Elements & Theme-Aware States
    -------------------------------------------------------------------------- */
 .sidebar-nav-btn {
-  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: #1E293B;
   border: 1px solid transparent;
-  transition: all 0.12s ease-in-out;
+  transition: all 0.15s ease-in-out;
+}
+
+html.dark .sidebar-nav-btn {
+  color: #E4E4E7;
 }
 
 .sidebar-nav-btn:hover {
-  color: var(--text-primary);
+  color: #0F172A;
   background-color: var(--row-hover);
 }
 
+html.dark .sidebar-nav-btn:hover {
+  color: #FFFFFF;
+}
+
 .sidebar-nav-btn.active {
-  color: var(--text-primary);
-  background-color: var(--row-active) !important;
+  color: #0F172A !important;
+  background-color: #E2E8F0 !important;
   border-color: var(--border-subtle) !important;
+  font-weight: 600 !important;
+}
+
+html.dark .sidebar-nav-btn.active {
+  color: #FFFFFF !important;
+  background-color: #1E293B !important;
+  border-color: #334155 !important;
 }
 
 .sidebar-item-row {
   position: relative;
   display: flex;
   align-items: center;
+  gap: 8px;
   width: 100%;
   height: 32px;
-  padding: 0 6px;
+  padding: 4px 8px;
   border-radius: 6px;
-  transition: background-color 0.12s ease;
+  transition: all 0.15s ease;
   user-select: none;
+  cursor: pointer;
 }
 
 .sidebar-item-row:hover {
@@ -195,48 +171,111 @@ body {
 }
 
 .sidebar-item-row.active {
-  background-color: var(--row-active);
+  background-color: #E2E8F0 !important;
   border: 1px solid var(--border-subtle);
 }
 
+html.dark .sidebar-item-row.active {
+  background-color: #1E293B !important;
+  border-color: #334155 !important;
+}
+
 .category-header-row .category-title-text {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #0F172A;
   letter-spacing: -0.01em;
 }
 
+html.dark .category-header-row .category-title-text {
+  color: #F4F4F5;
+}
+
 .subitem-row .subitem-title-text {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: #1E293B !important;
   transition: color 0.12s ease;
 }
 
+html.dark .subitem-row .subitem-title-text {
+  color: #E4E4E7 !important;
+}
+
 .subitem-row:hover .subitem-title-text {
-  color: var(--text-primary);
+  color: #0F172A !important;
+}
+
+html.dark .subitem-row:hover .subitem-title-text {
+  color: #FFFFFF !important;
 }
 
 .subitem-row.active .subitem-title-text {
-  color: var(--text-primary);
+  color: #0F172A !important;
+  font-weight: 600;
+}
+
+html.dark .subitem-row.active .subitem-title-text {
+  color: #FFFFFF !important;
   font-weight: 600;
 }
 
 .sidebar-icon {
-  width: 15px;
-  height: 15px;
-  color: var(--text-muted);
+  width: 16px;
+  height: 16px;
+  color: #475569 !important;
   flex-shrink: 0;
-  stroke-width: 1.5px;
+  stroke-width: 1.75px;
   transition: color 0.12s ease;
 }
 
-.sidebar-item-row:hover .sidebar-icon {
-  color: var(--text-secondary);
+html.dark .sidebar-icon {
+  color: #A1A1AA !important;
 }
 
-.sidebar-item-row.active .sidebar-icon {
+.sidebar-item-row:hover .sidebar-icon,
+.sidebar-nav-btn:hover .sidebar-icon {
+  color: #0F172A !important;
+}
+
+html.dark .sidebar-item-row:hover .sidebar-icon,
+html.dark .sidebar-nav-btn:hover .sidebar-icon {
+  color: #FFFFFF !important;
+}
+
+.sidebar-item-row.active .sidebar-icon,
+.sidebar-nav-btn.active .sidebar-icon {
+  color: #0F172A !important;
+}
+
+html.dark .sidebar-item-row.active .sidebar-icon,
+html.dark .sidebar-nav-btn.active .sidebar-icon {
+  color: #FFFFFF !important;
+}
+
+.accordion-toggle-btn {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 4px;
+  color: var(--text-muted);
+  transition: all 0.12s ease;
+}
+
+.accordion-toggle-btn:hover {
   color: var(--text-primary);
+  background-color: var(--row-hover);
+}
+
+.sub-items-container {
+  border-left: 1px solid var(--border-subtle);
+  margin-left: 14px;
+  padding-left: 8px;
+  margin-top: 2px;
 }
 
 .drag-gutter {
@@ -263,7 +302,7 @@ body {
   pointer-events: none;
   color: var(--text-muted);
   stroke-width: 1.5px;
-  transition: opacity 0.12s ease, visibility 0.12s ease, color 0.12s ease;
+  transition: opacity 0.15s ease, visibility 0.15s ease, color 0.15s ease;
 }
 
 .drag-gutter:hover i,
@@ -283,11 +322,11 @@ body {
   min-width: 0;
   cursor: pointer;
   transform: translateX(0);
-  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
 }
 
-.drag-gutter:hover~.row-label-group {
+.drag-gutter:hover ~ .row-label-group {
   transform: translateX(14px);
 }
 
@@ -297,7 +336,7 @@ body {
   gap: 2px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.12s ease;
+  transition: opacity 0.15s ease;
   flex-shrink: 0;
   margin-left: auto;
 }
@@ -328,7 +367,7 @@ body {
   width: 14px;
   height: 14px;
   stroke-width: 1.5px;
-  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .accordion-chevron.expanded {
@@ -361,193 +400,147 @@ body {
 }
 
 /* --------------------------------------------------------------------------
-   5. Authentic Notion Pastel Palette (Borderless Soft Tints + High Contrast)
+   5. Authentic Notion Pastel Palette (Zero Outer Borders + High Contrast)
    -------------------------------------------------------------------------- */
 
 /* Gray */
-.notion-tag-gray,
-.chip-gray,
-.notion-priority-none {
-  background-color: var(--notion-gray-bg) !important;
-  color: var(--notion-gray-text) !important;
+.notion-tag-gray, .chip-gray {
+  background-color: #F4F4F5;
+  color: #3F3F46;
+  border: none !important;
+}
+html.dark .notion-tag-gray, html.dark .chip-gray {
+  background-color: rgba(63, 63, 70, 0.7);
+  color: #D4D4D8;
   border: none !important;
 }
 
 /* Brown */
-.notion-tag-brown,
-.chip-brown {
-  background-color: var(--notion-brown-bg) !important;
-  color: var(--notion-brown-text) !important;
+.notion-tag-brown, .chip-brown {
+  background-color: #F4EEEE;
+  color: #976D57;
+  border: none !important;
+}
+html.dark .notion-tag-brown, html.dark .chip-brown {
+  background-color: rgba(56, 40, 30, 0.75);
+  color: #D7A98C;
   border: none !important;
 }
 
 /* Orange */
-.notion-tag-orange,
-.chip-orange {
-  background-color: var(--notion-orange-bg) !important;
-  color: var(--notion-orange-text) !important;
+.notion-tag-orange, .chip-orange {
+  background-color: #FAECE4;
+  color: #D9730D;
+  border: none !important;
+}
+html.dark .notion-tag-orange, html.dark .chip-orange {
+  background-color: rgba(63, 43, 29, 0.75);
+  color: #F0A06D;
   border: none !important;
 }
 
 /* Yellow / Medium Priority */
-.notion-tag-yellow,
-.chip-yellow,
-.notion-priority-medium {
-  background-color: var(--notion-yellow-bg) !important;
-  color: var(--notion-yellow-text) !important;
+.notion-tag-yellow, .chip-yellow, .notion-priority-medium {
+  background-color: #FEF9C3;
+  color: #A16207;
+  border: none !important;
+}
+html.dark .notion-tag-yellow, html.dark .chip-yellow, html.dark .notion-priority-medium {
+  background-color: #3A331A;
+  color: #FDE047;
   border: none !important;
 }
 
-/* Green / Done Status */
-.notion-tag-green,
-.chip-green {
-  background-color: var(--notion-green-bg) !important;
-  color: var(--notion-green-text) !important;
+/* Green */
+.notion-tag-green, .chip-green {
+  background-color: #EDF3EC;
+  color: #0F7B6C;
+  border: none !important;
+}
+html.dark .notion-tag-green, html.dark .chip-green {
+  background-color: rgba(30, 51, 41, 0.75);
+  color: #86CDA5;
   border: none !important;
 }
 
 /* Blue / Low Priority */
-.notion-tag-blue,
-.chip-blue,
-.notion-priority-low {
-  background-color: var(--notion-blue-bg) !important;
-  color: var(--notion-blue-text) !important;
+.notion-tag-blue, .chip-blue, .notion-priority-low {
+  background-color: #E7F3F8;
+  color: #0B6E99;
+  border: none !important;
+}
+html.dark .notion-tag-blue, html.dark .chip-blue, html.dark .notion-priority-low {
+  background-color: #1D2F3F;
+  color: #7BB8E8;
   border: none !important;
 }
 
-/* Purple / Review */
-.notion-tag-purple,
-.chip-purple {
-  background-color: var(--notion-purple-bg) !important;
-  color: var(--notion-purple-text) !important;
+/* Purple */
+.notion-tag-purple, .chip-purple {
+  background-color: #F4F0F7;
+  color: #6940A5;
+  border: none !important;
+}
+html.dark .notion-tag-purple, html.dark .chip-purple {
+  background-color: rgba(46, 35, 62, 0.75);
+  color: #C49DE8;
   border: none !important;
 }
 
 /* Pink */
-.notion-tag-pink,
-.chip-pink {
-  background-color: var(--notion-pink-bg) !important;
-  color: var(--notion-pink-text) !important;
+.notion-tag-pink, .chip-pink {
+  background-color: #FBF0F4;
+  color: #AD1A72;
+  border: none !important;
+}
+html.dark .notion-tag-pink, html.dark .chip-pink {
+  background-color: rgba(59, 31, 45, 0.75);
+  color: #E58BAC;
   border: none !important;
 }
 
-/* Red / Urgent / High Priority */
-.notion-tag-red,
-.chip-red,
-.notion-priority-urgent,
-.notion-priority-high {
-  background-color: var(--notion-red-bg) !important;
-  color: var(--notion-red-text) !important;
+/* Red / High Priority */
+.notion-tag-red, .chip-red, .notion-priority-urgent, .notion-priority-high {
+  background-color: #FEE2E2;
+  color: #B91C1C;
+  border: none !important;
+}
+html.dark .notion-tag-red, html.dark .chip-red, html.dark .notion-priority-urgent, html.dark .notion-priority-high {
+  background-color: #3E1F1F;
+  color: #FCA5A5;
   border: none !important;
 }
 
-/* --------------------------------------------------------------------------
-   6. Notion Soft Pastel Swatches in Modal
-   -------------------------------------------------------------------------- */
+/* None Priority */
+.notion-priority-none {
+  background-color: #F4F4F5;
+  color: #52525B;
+  border: none !important;
+}
+html.dark .notion-priority-none {
+  background-color: rgba(39, 39, 42, 0.6);
+  color: #A1A1AA;
+  border: none !important;
+}
+
+/* Swatches */
 .notion-swatch-sq {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
   flex-shrink: 0;
-  cursor: pointer;
-  border: none !important;
-  outline: none;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
-  position: relative;
 }
+.notion-swatch-sq.gray   { background-color: #9CA3AF; }
+.notion-swatch-sq.brown  { background-color: #976D57; }
+.notion-swatch-sq.orange { background-color: #D9730D; }
+.notion-swatch-sq.yellow { background-color: #DFAB01; }
+.notion-swatch-sq.green  { background-color: #0F7B6C; }
+.notion-swatch-sq.blue   { background-color: #0B6E99; }
+.notion-swatch-sq.purple { background-color: #6940A5; }
+.notion-swatch-sq.pink   { background-color: #AD1A72; }
+.notion-swatch-sq.red    { background-color: #E03E3E; }
 
-.notion-swatch-sq:hover {
-  transform: scale(1.15);
-}
-
-.notion-swatch-sq:active {
-  transform: scale(0.95);
-}
-
-/* Swatch Colors in Light Mode */
-.notion-swatch-sq.gray {
-  background-color: #E3E2E0;
-}
-
-.notion-swatch-sq.brown {
-  background-color: #EEE0DA;
-}
-
-.notion-swatch-sq.orange {
-  background-color: #FADEC9;
-}
-
-.notion-swatch-sq.yellow {
-  background-color: #FDECC8;
-}
-
-.notion-swatch-sq.green {
-  background-color: #DBEDDB;
-}
-
-.notion-swatch-sq.blue {
-  background-color: #D3E5EF;
-}
-
-.notion-swatch-sq.purple {
-  background-color: #E8DEEE;
-}
-
-.notion-swatch-sq.pink {
-  background-color: #F5E0E9;
-}
-
-.notion-swatch-sq.red {
-  background-color: #FFE2DD;
-}
-
-/* Swatch Colors in Dark Mode */
-html.dark .notion-swatch-sq.gray {
-  background-color: #37352F;
-}
-
-html.dark .notion-swatch-sq.brown {
-  background-color: #43291F;
-}
-
-html.dark .notion-swatch-sq.orange {
-  background-color: #593A1D;
-}
-
-html.dark .notion-swatch-sq.yellow {
-  background-color: #53461D;
-}
-
-html.dark .notion-swatch-sq.green {
-  background-color: #274536;
-}
-
-html.dark .notion-swatch-sq.blue {
-  background-color: #243D54;
-}
-
-html.dark .notion-swatch-sq.purple {
-  background-color: #3E2B56;
-}
-
-html.dark .notion-swatch-sq.pink {
-  background-color: #4E273A;
-}
-
-html.dark .notion-swatch-sq.red {
-  background-color: #522E2A;
-}
-
-/* Active Swatch State */
-.notion-swatch-sq.active-swatch,
-.notion-swatch-sq.ring-2 {
-  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--text-primary);
-  transform: scale(1.08);
-}
-
-/* --------------------------------------------------------------------------
-   7. Calendar Event Pill
-   -------------------------------------------------------------------------- */
+/* Calendar Event Pill */
 .event-pill {
   display: block;
   width: 100%;
@@ -565,7 +558,7 @@ html.dark .notion-swatch-sq.red {
 }
 
 .event-pill:hover {
-  filter: brightness(1.05);
+  filter: brightness(1.08);
   transform: translateY(-0.5px);
 }
 
@@ -578,7 +571,7 @@ html.dark .notion-swatch-sq.red {
 }
 
 /* --------------------------------------------------------------------------
-   8. Modular Project View Switcher & Tab Management
+   6. Modular Project View Switcher & Tab Management (Close Buttons)
    -------------------------------------------------------------------------- */
 .project-view-tab-bar {
   display: flex;
@@ -594,7 +587,7 @@ html.dark .notion-swatch-sq.red {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 9px;
+  padding: 6px 10px;
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
@@ -660,12 +653,12 @@ html.dark .notion-swatch-sq.red {
 }
 
 /* --------------------------------------------------------------------------
-   9. Nested Subject-Categorized Media Vault Styles
+   7. Nested Subject-Categorized Media Vault Styles
    -------------------------------------------------------------------------- */
 .media-subject-group {
   background-color: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 16px;
   transition: border-color 0.15s ease;
 }
@@ -678,7 +671,7 @@ html.dark .notion-swatch-sq.red {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 8px;
+  padding-bottom: 10px;
   margin-bottom: 12px;
   border-bottom: 1px solid var(--border-subtle);
 }
@@ -690,23 +683,25 @@ html.dark .notion-swatch-sq.red {
   padding: 3px 8px;
   font-size: 11px;
   font-weight: 500;
-  border-radius: 5px;
+  border-radius: 6px;
   color: var(--text-muted);
-  background-color: transparent;
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
   transition: all 0.12s ease;
 }
 
 .media-subject-add-btn:hover {
   color: var(--text-primary);
-  background-color: var(--row-hover);
+  border-color: var(--border-hover);
+  background-color: var(--bg-surface-subtle);
 }
 
 .media-card-item {
   background-color: var(--bg-canvas);
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 12px;
-  transition: all 0.12s ease;
+  transition: all 0.14s ease;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -716,7 +711,7 @@ html.dark .notion-swatch-sq.red {
 .media-card-item:hover {
   border-color: var(--border-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.12);
 }
 
 .media-card-item.watched {
@@ -729,12 +724,12 @@ html.dark .notion-swatch-sq.red {
 }
 
 /* --------------------------------------------------------------------------
-   10. Polymorphic Customizable Data Table Engine & Header Drag & Drop
+   8. Polymorphic Customizable Data Table Engine
    -------------------------------------------------------------------------- */
 .table-view-container {
   background-color: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: 10px;
+  border-radius: 12px;
   overflow-x: auto;
 }
 
@@ -747,40 +742,49 @@ html.dark .notion-swatch-sq.red {
 
 .table-th-header {
   background-color: var(--table-header-bg);
-  padding: 7px 10px;
+  padding: 8px 10px;
   font-size: 11px;
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-weight: 600;
+  color: var(--text-muted);
   border-bottom: 1px solid var(--border-subtle);
   border-right: 1px solid var(--border-subtle);
   user-select: none;
   position: relative;
-  transition: background-color 0.12s ease, border-color 0.12s ease;
-}
-
-.table-th-header[draggable="true"] {
-  cursor: grab;
-}
-
-.table-th-header[draggable="true"]:active {
-  cursor: grabbing;
-}
-
-.table-th-header.col-dragging {
-  opacity: 0.45;
-  background-color: var(--row-active) !important;
-}
-
-.table-th-header.col-drag-over-left {
-  border-left: 3px solid #6366F1 !important;
-}
-
-.table-th-header.col-drag-over-right {
-  border-right: 3px solid #6366F1 !important;
+  transition: background-color 0.12s ease, box-shadow 0.12s ease;
 }
 
 .table-th-header:hover {
   background-color: var(--row-hover);
+}
+
+.table-th-header.col-dragging {
+  opacity: 0.4;
+  background-color: var(--row-hover);
+}
+
+.table-th-header.col-drag-over-left {
+  box-shadow: inset 3px 0 0 0 #6366F1 !important;
+}
+
+.table-th-header.col-drag-over-right {
+  box-shadow: inset -3px 0 0 0 #6366F1 !important;
+}
+
+.drive-attachment-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2.5px 7px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.12s ease;
+}
+
+.drive-attachment-badge:hover {
+  filter: brightness(1.08);
+  transform: translateY(-0.5px);
 }
 
 .table-header-content {
@@ -795,7 +799,7 @@ html.dark .notion-swatch-sq.red {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text-secondary);
 }
@@ -817,7 +821,7 @@ html.dark .notion-swatch-sq.red {
 }
 
 .table-th-add-col {
-  width: 40px;
+  width: 44px;
   padding: 4px;
   background-color: var(--table-header-bg);
   border-bottom: 1px solid var(--border-subtle);
@@ -828,8 +832,8 @@ html.dark .notion-swatch-sq.red {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 4px;
   color: var(--text-muted);
   transition: all 0.12s ease;
@@ -841,14 +845,13 @@ html.dark .notion-swatch-sq.red {
 }
 
 .spreadsheet-table td {
-  padding: 5px 8px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--border-subtle);
   border-right: 1px solid var(--border-subtle);
   color: var(--text-primary);
   vertical-align: middle;
   transition: background-color 0.12s ease;
   position: relative;
-  font-family: inherit;
 }
 
 .spreadsheet-table td:last-child {
@@ -877,13 +880,12 @@ html.dark .notion-swatch-sq.red {
   padding: 2px 4px;
   border-radius: 4px;
   outline: none;
-  font-family: inherit;
   transition: background-color 0.12s ease;
 }
 
 .table-cell-input:hover,
 .table-cell-input:focus {
-  background-color: var(--row-hover);
+  background-color: var(--bg-surface-subtle);
 }
 
 .table-fast-new-row {
@@ -891,7 +893,7 @@ html.dark .notion-swatch-sq.red {
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 7px 12px;
+  padding: 8px 12px;
   background-color: var(--bg-canvas);
   border-top: 1px solid var(--border-subtle);
 }
@@ -903,7 +905,6 @@ html.dark .notion-swatch-sq.red {
   font-size: 12px;
   color: var(--text-primary);
   outline: none;
-  font-family: inherit;
 }
 
 /* Priority Badges & Triggers */
@@ -911,8 +912,8 @@ html.dark .notion-swatch-sq.red {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 7px;
-  border-radius: 4px;
+  padding: 2.5px 7px;
+  border-radius: 5px;
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
@@ -922,113 +923,183 @@ html.dark .notion-swatch-sq.red {
 }
 
 .notion-priority-badge:hover {
-  filter: brightness(1.05);
+  filter: brightness(1.08);
 }
 
 .notion-priority-badge:active {
   transform: scale(0.96);
 }
 
-/* Drive Attachment & Phone Badges */
-.drive-link-badge {
-  display: inline-flex;
+/* --------------------------------------------------------------------------
+   9. Kanban, To-Do List & Timeline Views
+   -------------------------------------------------------------------------- */
+.kanban-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.kanban-column {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 380px;
+}
+
+.kanban-column-header {
+  display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 7px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  background-color: var(--notion-blue-bg);
-  color: var(--notion-blue-text);
-  border: none !important;
-  transition: all 0.12s ease;
-  text-decoration: none;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.kanban-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 120px;
+}
+
+.kanban-card {
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 10px;
+  cursor: grab;
   user-select: none;
+  transition: border-color 0.12s ease, transform 0.1s ease, box-shadow 0.12s ease;
 }
 
-.drive-link-badge:hover {
-  filter: brightness(1.05);
-  transform: translateY(-0.5px);
+.kanban-card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.15);
 }
 
-.phone-link-badge {
-  display: inline-flex;
+.kanban-card:active {
+  cursor: grabbing;
+}
+
+/* Simple To-Do List View Styles */
+.todo-view-container {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 1.25rem;
+}
+
+.todo-item-row {
+  display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 7px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  background-color: var(--notion-purple-bg);
-  color: var(--notion-purple-text);
-  border: none !important;
-  transition: all 0.12s ease;
-  text-decoration: none;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  transition: all 0.14s ease;
 }
 
-.phone-link-badge:hover {
-  filter: brightness(1.05);
+.todo-item-row:hover {
+  border-color: var(--border-hover);
+  background-color: var(--bg-surface-subtle);
+}
+
+.todo-item-row.completed {
+  opacity: 0.55;
+  border-color: transparent;
+  background-color: var(--row-hover);
+}
+
+.todo-item-row.completed .todo-item-title {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* Timeline / Gantt Roadmap View */
+.timeline-container {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 16px;
+  overflow-x: auto;
+}
+
+.timeline-header-days {
+  display: grid;
+  grid-template-columns: 200px repeat(14, minmax(52px, 1fr));
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.timeline-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.timeline-row {
+  display: grid;
+  grid-template-columns: 200px repeat(14, minmax(52px, 1fr));
+  align-items: center;
+  min-height: 36px;
+  border-radius: 6px;
+  position: relative;
+}
+
+.timeline-row:hover {
+  background-color: var(--timeline-track-bg);
+}
+
+.timeline-track-cell {
+  border-right: 1px dashed var(--timeline-grid-line);
+  height: 100%;
+}
+
+.timeline-bar {
+  position: absolute;
+  height: 24px;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: filter 0.12s ease, transform 0.1s ease;
+  z-index: 10;
+}
+
+.timeline-bar:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
 }
 
 /* --------------------------------------------------------------------------
-   11. AUTHENTIC NOTION PAGE MODAL (Clean Ghost Inputs & Pastel Badges)
+   10. Notion Page Modal & Dynamic Popovers
    -------------------------------------------------------------------------- */
-#pageModal {
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-}
-
-#pageModalCard {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
-  color: var(--text-primary);
-}
-
-/* Title Input: Crisp, solid high-contrast header */
-.notion-page-title-input,
-#pageTitleInput {
-  font-family: inherit;
-  width: 100%;
-  background: transparent;
-  border: none !important;
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: -0.025em;
-  color: #111827 !important;
-  padding: 4px 0;
-  outline: none !important;
-  box-shadow: none !important;
-  opacity: 1 !important;
-}
-
-html.dark .notion-page-title-input,
-html.dark #pageTitleInput {
-  color: #F4F4F5 !important;
-}
-
-.notion-page-title-input::placeholder,
-#pageTitleInput::placeholder {
-  color: #9CA3AF !important;
-  font-weight: 400;
-  opacity: 1 !important;
-}
-
-html.dark .notion-page-title-input::placeholder,
-html.dark #pageTitleInput::placeholder {
-  color: #71717A !important;
-}
-
-/* Modal Section Headers & Row Labels */
 .notion-property-row {
   display: grid;
-  grid-template-columns: 140px 1fr 26px;
+  grid-template-columns: 140px 1fr 28px;
   align-items: center;
   min-height: 34px;
   padding: 2px 4px;
   border-radius: 6px;
   transition: background-color 0.12s ease;
-  opacity: 1 !important;
 }
 
 .notion-property-row:hover {
@@ -1038,57 +1109,54 @@ html.dark #pageTitleInput::placeholder {
 .notion-property-label {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: #37352F !important;
+  gap: 6px;
+  font-size: 13.5px !important;
+  font-size: 0.845rem !important;
+  font-weight: 500 !important;
+  color: #1F2937 !important;
   user-select: none;
   cursor: pointer;
-  padding: 4px 6px;
+  padding: 3px 4px;
   border-radius: 4px;
   transition: background-color 0.12s ease, color 0.12s ease;
-  opacity: 1 !important;
 }
 
 html.dark .notion-property-label {
-  color: #D4D4D8 !important;
+  color: #E4E4E7 !important;
 }
 
 .notion-property-label:hover {
   background-color: var(--row-hover);
 }
 
-/* Modal Icons Contrast */
-#pageModalCard [data-lucide],
-#pageModalCard i,
-#pageModalCard svg {
-  color: #4B5563;
-  stroke-width: 1.75px;
-  opacity: 1 !important;
+/* Icons inside Labels */
+.notion-property-label i,
+.notion-property-label svg,
+.notion-property-label [data-lucide] {
+  color: #4B5563 !important;
+  stroke-width: 1.75px !important;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
-html.dark #pageModalCard [data-lucide],
-html.dark #pageModalCard i,
-html.dark #pageModalCard svg {
-  color: #A1A1AA;
+html.dark .notion-property-label i,
+html.dark .notion-property-label svg,
+html.dark .notion-property-label [data-lucide] {
+  color: #A1A1AA !important;
 }
 
-#closePageModalBtn [data-lucide],
-#expandPageModalBtn [data-lucide],
-.notion-property-menu-btn [data-lucide] {
-  color: #6B7280;
+/* Toggles & Checkbox Labels ("End date", "Include time") */
+#pageModalCard .notion-property-value label,
+#pageModalCard .notion-property-value label span {
+  color: #374151 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
 }
 
-#closePageModalBtn:hover [data-lucide],
-#expandPageModalBtn:hover [data-lucide],
-.notion-property-menu-btn:hover [data-lucide] {
-  color: #111827;
-}
-
-html.dark #closePageModalBtn:hover [data-lucide],
-html.dark #expandPageModalBtn:hover [data-lucide],
-html.dark .notion-property-menu-btn:hover [data-lucide] {
-  color: #F4F4F5;
+html.dark #pageModalCard .notion-property-value label,
+html.dark #pageModalCard .notion-property-value label span {
+  color: #D4D4D8 !important;
 }
 
 .notion-property-value {
@@ -1097,186 +1165,96 @@ html.dark .notion-property-menu-btn:hover [data-lucide] {
   min-width: 0;
 }
 
-/* Notion Ghost Inputs for Property Values (Crisp, Solid, High Contrast) */
-.notion-ghost-input,
+/* Dropdowns, Pickers & Inputs inside Modal */
+#pageModalCard input[type="date"],
+#pageModalCard input[type="time"],
+#pageModalCard select,
+#pageReminderSelect,
+#pageStartDateInput,
+#pageEndDateInput,
+#pageStartTimeInput,
+#pageEndTimeInput,
 .notion-property-input {
   width: 100%;
   background: transparent;
-  border: none !important;
-  font-family: inherit;
-  font-size: 0.8125rem;
-  font-weight: 400;
+  border: none;
+  font-size: 13px !important;
+  font-weight: 500;
   color: #111827 !important;
-  padding: 4px 8px;
+  padding: 4px 6px;
   border-radius: 4px;
-  outline: none !important;
-  opacity: 1 !important;
+  outline: none;
   transition: background-color 0.12s ease;
 }
 
-html.dark .notion-ghost-input,
+html.dark #pageModalCard input[type="date"],
+html.dark #pageModalCard input[type="time"],
+html.dark #pageModalCard select,
+html.dark #pageReminderSelect,
+html.dark #pageStartDateInput,
+html.dark #pageEndDateInput,
+html.dark #pageStartTimeInput,
+html.dark #pageEndTimeInput,
 html.dark .notion-property-input {
   color: #F4F4F5 !important;
 }
 
-.notion-ghost-input:hover,
-.notion-property-input:hover {
-  background-color: var(--row-hover);
-}
-
-.notion-ghost-input:focus,
+.notion-property-input:hover,
 .notion-property-input:focus {
-  background-color: var(--row-active);
+  background-color: var(--bg-surface-subtle);
 }
 
-.notion-ghost-input::placeholder,
-.notion-property-input::placeholder {
-  color: #9CA3AF !important;
-  font-weight: 400;
-  opacity: 1 !important;
+/* Section Header: Notes & Comments */
+#pageModalCard .modal-section-heading {
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  color: #1F2937 !important;
 }
 
-html.dark .notion-ghost-input::placeholder,
-html.dark .notion-property-input::placeholder {
-  color: #71717A !important;
+html.dark #pageModalCard .modal-section-heading {
+  color: #F4F4F5 !important;
 }
 
 .notion-property-menu-btn {
   opacity: 0;
   transition: opacity 0.12s ease;
-  color: #6B7280;
-  padding: 2px;
-  border-radius: 3px;
-}
-
-.notion-property-menu-btn:hover {
-  color: var(--text-primary);
-  background-color: var(--row-hover);
 }
 
 .notion-property-row:hover .notion-property-menu-btn {
   opacity: 1;
 }
 
-/* Status & Select Triggers */
-.notion-status-trigger,
-.select-prop-trigger {
+.notion-status-trigger {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 2.5px 8px;
-  border-radius: 4px;
-  font-size: 11.5px;
+  border-radius: 5px;
+  font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   user-select: none;
   transition: filter 0.12s ease, transform 0.08s ease;
   border: none !important;
-  opacity: 1 !important;
 }
 
-.notion-status-trigger:hover,
-.select-prop-trigger:hover {
-  filter: brightness(1.05);
+.notion-status-trigger:hover {
+  filter: brightness(1.08);
 }
 
-.notion-status-trigger:active,
-.select-prop-trigger:active {
+.notion-status-trigger:active {
   transform: scale(0.97);
 }
 
-/* Ghost Date Picker Pill */
-.notion-date-pill-input,
-#pageStartDateInput,
-#pageEndDateInput,
-#pageStartTimeInput,
-#pageEndTimeInput {
-  background: transparent;
-  border: none !important;
-  font-family: inherit;
-  font-size: 0.8125rem;
-  font-weight: 400;
-  color: #111827 !important;
-  padding: 3px 6px;
-  border-radius: 4px;
-  outline: none !important;
-  cursor: pointer;
-  opacity: 1 !important;
-  transition: background-color 0.12s ease;
-}
-
-html.dark .notion-date-pill-input,
-html.dark #pageStartDateInput,
-html.dark #pageEndDateInput,
-html.dark #pageStartTimeInput,
-html.dark #pageEndTimeInput {
-  color: #F4F4F5 !important;
-}
-
-.notion-date-pill-input:hover,
-.notion-date-pill-input:focus,
-#pageStartDateInput:hover,
-#pageStartDateInput:focus,
-#pageEndDateInput:hover,
-#pageEndDateInput:focus {
-  background-color: var(--row-hover);
-}
-
-/* Seamless Notes Textarea */
-.notion-notes-textarea,
-#pageNotesTextarea {
-  width: 100%;
-  background: transparent;
-  border: none !important;
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-family: inherit;
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: #111827 !important;
-  line-height: 1.6;
-  outline: none !important;
-  resize: none;
-  opacity: 1 !important;
-  transition: background-color 0.12s ease;
-}
-
-html.dark .notion-notes-textarea,
-html.dark #pageNotesTextarea {
-  color: #F4F4F5 !important;
-}
-
-.notion-notes-textarea:hover,
-.notion-notes-textarea:focus,
-#pageNotesTextarea:hover,
-#pageNotesTextarea:focus {
-  background-color: var(--row-hover);
-}
-
-.notion-notes-textarea::placeholder,
-#pageNotesTextarea::placeholder {
-  color: #9CA3AF !important;
-  font-weight: 400;
-  opacity: 1 !important;
-}
-
-html.dark .notion-notes-textarea::placeholder,
-html.dark #pageNotesTextarea::placeholder {
-  color: #71717A !important;
-}
-
-/* --------------------------------------------------------------------------
-   12. Notion Floating Popovers & Context Menus
-   -------------------------------------------------------------------------- */
 .notion-popover-panel {
   position: fixed;
   z-index: 70;
   width: 260px;
   background-color: var(--bg-popover);
   border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  padding: 6px;
-  box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.25);
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.45);
   animation: fadeIn 0.12s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -1285,10 +1263,10 @@ html.dark #pageNotesTextarea::placeholder {
   background-color: var(--bg-canvas);
   border: 1px solid var(--border-subtle);
   color: var(--text-primary);
-  border-radius: 5px;
-  padding: 5px 8px;
+  border-radius: 6px;
+  padding: 6px 10px;
   font-size: 12px;
-  font-family: inherit;
+  font-weight: 500;
   outline: none;
   transition: border-color 0.12s ease;
 }
@@ -1301,8 +1279,8 @@ html.dark #pageNotesTextarea::placeholder {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 8px;
-  border-radius: 5px;
+  padding: 5px 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition: background-color 0.12s ease;
 }
@@ -1319,7 +1297,7 @@ html.dark #pageNotesTextarea::placeholder {
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 4px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35);
   animation: fadeIn 0.12s ease forwards;
 }
 
@@ -1328,7 +1306,7 @@ html.dark #pageNotesTextarea::placeholder {
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 5px 8px;
+  padding: 6px 8px;
   font-size: 12px;
   color: var(--text-secondary);
   border-radius: 4px;
@@ -1342,12 +1320,12 @@ html.dark #pageNotesTextarea::placeholder {
 }
 
 .property-context-item.danger:hover {
-  background-color: rgba(239, 68, 68, 0.12);
+  background-color: rgba(239, 68, 68, 0.15);
   color: #EF4444;
 }
 
 /* --------------------------------------------------------------------------
-   13. Calendar Day Inspector Popover Modal
+   11. Calendar Day Inspector Popover Modal
    -------------------------------------------------------------------------- */
 .day-inspector-modal {
   position: fixed;
@@ -1356,15 +1334,15 @@ html.dark #pageNotesTextarea::placeholder {
   max-width: 92vw;
   background-color: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: 14px;
-  padding: 16px;
-  box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.35);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 25px 40px -12px rgba(0, 0, 0, 0.5);
   animation: fadeIn 0.14s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .inspector-event-item {
-  padding: 7px 9px;
-  border-radius: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
   background-color: var(--bg-canvas);
   border: 1px solid var(--border-subtle);
   transition: all 0.12s ease;
@@ -1373,28 +1351,28 @@ html.dark #pageNotesTextarea::placeholder {
 
 .inspector-event-item:hover {
   border-color: var(--border-hover);
-  background-color: var(--row-hover);
+  background-color: var(--bg-surface-subtle);
   transform: translateY(-0.5px);
 }
 
 /* --------------------------------------------------------------------------
-   14. Today's Checklist Item Card
+   12. Today's Checklist Item Card
    -------------------------------------------------------------------------- */
 .today-task-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
-  border-radius: 6px;
+  padding: 7px 10px;
+  border-radius: 8px;
   background-color: var(--bg-canvas);
   border: 1px solid var(--border-subtle);
-  transition: opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  transition: opacity 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
   user-select: none;
 }
 
 .today-task-card:hover {
   border-color: var(--border-hover);
-  background-color: var(--row-hover);
+  background-color: var(--bg-surface-subtle);
 }
 
 .today-task-card.completed {
@@ -1409,24 +1387,22 @@ html.dark #pageNotesTextarea::placeholder {
 }
 
 /* --------------------------------------------------------------------------
-   15. Master & Scoped Calendar Grid
+   13. Master & Scoped Calendar Grid
    -------------------------------------------------------------------------- */
-#dashboardCalendarGrid,
-#smartCalendarGrid,
-#scopedCalendarGrid {
+#dashboardCalendarGrid, #smartCalendarGrid, #scopedCalendarGrid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-auto-rows: minmax(90px, auto);
-  gap: 4px;
+  grid-auto-rows: minmax(92px, auto);
+  gap: 5px;
 }
 
 .cal-day-cell {
-  min-height: 90px;
+  min-height: 92px;
   height: 100%;
   background-color: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  padding: 4px 6px;
+  border-radius: 0.55rem;
+  padding: 5px 6px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -1438,12 +1414,12 @@ html.dark #pageNotesTextarea::placeholder {
 
 .cal-day-cell:hover {
   border-color: var(--border-hover);
-  background-color: var(--row-hover);
+  background-color: var(--bg-surface-subtle);
 }
 
 .cal-day-cell.current-day {
   border-color: var(--text-secondary);
-  background-color: var(--row-hover);
+  background-color: var(--bg-surface-subtle);
 }
 
 .cal-day-cell.other-month {
@@ -1477,18 +1453,25 @@ html.dark #pageNotesTextarea::placeholder {
 .cal-events-container {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 3.5px;
   flex: 1;
 }
 
 /* --------------------------------------------------------------------------
-   16. Custom Checkbox & Hub Shortlinks
+   14. Custom Form Elements & Select Controls
    -------------------------------------------------------------------------- */
+select.appearance-none {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: none !important;
+}
+
 .custom-checkbox {
   appearance: none;
   -webkit-appearance: none;
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 1rem;
+  height: 1rem;
   border: 1px solid var(--border-hover);
   border-radius: 0.25rem;
   background-color: var(--bg-surface);
@@ -1510,8 +1493,8 @@ html.dark #pageNotesTextarea::placeholder {
 
 .custom-checkbox:checked::before {
   content: "";
-  width: 0.42rem;
-  height: 0.42rem;
+  width: 0.45rem;
+  height: 0.45rem;
   clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
   background-color: var(--bg-canvas);
 }
@@ -1524,8 +1507,8 @@ html.dark #pageNotesTextarea::placeholder {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
   background-color: var(--bg-canvas);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
@@ -1539,63 +1522,38 @@ html.dark #pageNotesTextarea::placeholder {
 .hub-shortlink-btn:hover {
   color: var(--text-primary);
   border-color: var(--border-hover);
-  background-color: var(--row-hover);
+  background-color: var(--bg-surface-subtle);
   transform: translateY(-0.5px);
 }
 
 /* --------------------------------------------------------------------------
-   17. Global Toast Notification System
+   15. Toast Notification & Widgets
    -------------------------------------------------------------------------- */
-#toastContainer {
-  position: fixed;
-  bottom: 1.25rem;
-  right: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  z-index: 9999;
-  pointer-events: none;
-}
-
-.toast-item {
-  background-color: var(--bg-surface);
-  color: var(--text-primary);
-  border: 1px solid var(--border-subtle);
-  box-shadow: 0 15px 30px -8px rgba(0, 0, 0, 0.35);
+.toast-card {
+  background-color: #181A20;
+  color: #E4E4E7;
+  border: 1px solid rgba(63, 63, 70, 0.7);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
   border-radius: 8px;
-  padding: 0.5rem 0.875rem;
-  font-size: 0.75rem;
+  padding: 8px 14px;
+  font-size: 12px;
   font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
   pointer-events: auto;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-  animation: toastIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  max-width: 320px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.toast-item.toast-success i,
-.toast-item.toast-success svg {
-  color: #10B981;
-}
-
-.toast-item.toast-error i,
-.toast-item.toast-error svg {
-  color: #EF4444;
-}
-
-.toast-item.toast-info i,
-.toast-item.toast-info svg {
-  color: #6366F1;
+.toast-slide-in {
+  animation: toastIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes toastIn {
   from {
-    transform: translateY(14px) scale(0.96);
+    transform: translateY(12px) scale(0.95);
     opacity: 0;
   }
-
   to {
     transform: translateY(0) scale(1);
     opacity: 1;
@@ -1603,495 +1561,165 @@ html.dark #pageNotesTextarea::placeholder {
 }
 
 /* --------------------------------------------------------------------------
-   18. Kanban, To-Do List & Timeline Views
+   16. Mobile Responsiveness & Touch Optimization
    -------------------------------------------------------------------------- */
-.kanban-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
-  align-items: start;
-}
-
-.kanban-column {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 380px;
-}
-
-.kanban-column-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.kanban-cards-container {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: 1;
-  min-height: 120px;
-}
-
-.kanban-card {
-  background-color: var(--bg-canvas);
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  padding: 9px;
-  cursor: grab;
-  user-select: none;
-  transition: border-color 0.12s ease, transform 0.1s ease, box-shadow 0.12s ease;
-}
-
-.kanban-card:hover {
-  border-color: var(--border-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.1);
-}
-
-.kanban-card:active {
-  cursor: grabbing;
-}
-
-/* Simple To-Do List View Styles */
-.todo-view-container {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 1.25rem;
-}
-
-.todo-item-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 7px 9px;
-  border-radius: 6px;
-  background-color: var(--bg-canvas);
-  border: 1px solid var(--border-subtle);
-  transition: all 0.12s ease;
-}
-
-.todo-item-row:hover {
-  border-color: var(--border-hover);
-  background-color: var(--row-hover);
-}
-
-.todo-item-row.completed {
-  opacity: 0.55;
-  border-color: transparent;
-  background-color: var(--row-hover);
-}
-
-.todo-item-row.completed .todo-item-title {
-  text-decoration: line-through;
-  color: var(--text-muted);
-}
-
-/* Timeline Roadmap View */
-.timeline-container {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  padding: 14px;
-  overflow-x: auto;
-}
-
-.timeline-header-days {
-  display: grid;
-  grid-template-columns: 200px repeat(14, minmax(48px, 1fr));
-  border-bottom: 1px solid var(--border-subtle);
-  padding-bottom: 6px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-muted);
-  text-align: center;
-}
-
-.timeline-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-top: 8px;
-}
-
-.timeline-row {
-  display: grid;
-  grid-template-columns: 200px repeat(14, minmax(48px, 1fr));
-  align-items: center;
-  min-height: 34px;
-  border-radius: 5px;
-  position: relative;
-}
-
-.timeline-row:hover {
-  background-color: var(--timeline-track-bg);
-}
-
-.timeline-track-cell {
-  border-right: 1px dashed var(--timeline-grid-line);
-  height: 100%;
-}
-
-.timeline-bar {
-  position: absolute;
-  height: 22px;
-  border-radius: 4px;
-  padding: 2px 7px;
-  font-size: 11px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: filter 0.12s ease, transform 0.1s ease;
-  z-index: 10;
-}
-
-.timeline-bar:hover {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-}
-
-/* --------------------------------------------------------------------------
-   19. Bottom Dashboard Widget Zone Styles
-   -------------------------------------------------------------------------- */
-.bottom-widget-zone {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 1.25rem;
-  transition: border-color 0.15s ease;
-}
-
-.bottom-widget-zone:hover {
-  border-color: var(--border-hover);
-}
-
-.exam-revision-card {
-  background-color: var(--bg-canvas);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  padding: 0.875rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 0.75rem;
-  transition: all 0.12s ease;
-}
-
-.exam-revision-card:hover {
-  border-color: var(--border-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.08);
-}
-
-.scratchpad-textarea {
-  width: 100%;
-  min-height: 130px;
-  background-color: var(--bg-canvas);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  padding: 0.75rem 0.875rem;
-  font-size: 0.75rem;
-  color: var(--text-primary);
-  line-height: 1.6;
-  outline: none;
-  resize: vertical;
-  transition: border-color 0.12s ease;
-}
-
-.scratchpad-textarea:focus {
-  border-color: var(--border-hover);
-}
-
-.sprint-progress-bar {
-  width: 100%;
-  height: 5px;
-  background-color: var(--bg-surface-subtle);
-  border-radius: 9999px;
-  overflow: hidden;
-}
-
-.sprint-progress-fill {
-  height: 100%;
-  border-radius: 9999px;
-  transition: width 0.3s ease;
-}
-
-/* --------------------------------------------------------------------------
-   20. Cloud Sync Status Pill
-   -------------------------------------------------------------------------- */
-.cloud-sync-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 7px;
-  border-radius: 9999px;
-  font-size: 10px;
-  font-weight: 500;
-  background-color: var(--bg-canvas);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-muted);
-  user-select: none;
-}
-
-.cloud-sync-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 9999px;
-  background-color: #10B981;
-}
-
-.cloud-sync-dot.syncing {
-  background-color: #F59E0B;
-  animation: pulse 1s infinite;
-}
-
-.cloud-sync-dot.offline {
-  background-color: #6B7280;
-}
-
-/* ==========================================================================
-   21. Mobile Responsiveness, Drawer Navigation & Touch Ergonomics
-   ========================================================================== */
-
-/* Touch Ergonomics & Safe Area Support */
-* {
-  -webkit-tap-highlight-color: transparent;
-}
-
-body {
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-  overflow-x: hidden;
-}
-
-/* Sidebar Backdrop (Mobile Drawer Overlay) */
-.sidebar-backdrop {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  z-index: 40;
-  opacity: 1;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
-}
-
-.sidebar-backdrop.hidden {
-  display: none !important;
-  opacity: 0;
-}
-
-/* Mobile Sidebar Drawer (< 768px) */
-@media (max-width: 767.98px) {
-  #appSidebar {
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 50;
-    width: 280px;
-    max-width: 86vw;
-    height: 100vh;
-    height: 100dvh;
-    transform: translateX(-100%);
-    transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.26s ease;
-    box-shadow: none;
-    background-color: var(--bg-sidebar);
-  }
-
-  #appSidebar.sidebar-open {
-    transform: translateX(0) !important;
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5) !important;
-  }
-
-  /* Always show drag handles & action buttons cleanly on touch */
-  .drag-gutter i,
-  .drag-gutter svg,
-  .drag-gutter [data-lucide="grip-vertical"] {
-    opacity: 0.4 !important;
-    visibility: visible !important;
-    pointer-events: auto !important;
-  }
-
-  .row-actions {
-    opacity: 1 !important;
-    pointer-events: auto !important;
-  }
-}
-
-/* Desktop Sidebar Toggle Collapse (> 768px) */
-@media (min-width: 768px) {
-  #appSidebar {
-    transition: width 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease, opacity 0.2s ease;
-  }
-
-  #appSidebar.sidebar-collapsed {
-    width: 0 !important;
-    min-width: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    border-right-width: 0 !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-  }
-}
-
-/* Responsive Content Stage */
-@media (max-width: 640px) {
-  #contentStage {
-    padding: 0.875rem !important;
-    gap: 1rem;
-  }
-}
-
-/* Responsive Calendar Grids (< 640px) */
-@media (max-width: 640px) {
-  #dashboardCalendarGrid,
-  #smartCalendarGrid,
-  #scopedCalendarGrid {
-    grid-auto-rows: minmax(52px, auto) !important;
-    gap: 2px !important;
-  }
-
-  .cal-day-cell {
-    min-height: 52px !important;
-    padding: 2px 3px !important;
-    border-radius: 4px !important;
-  }
-
-  .cal-day-header {
-    margin-bottom: 1px !important;
-  }
-
-  .cal-day-number {
-    font-size: 9.5px !important;
-  }
-
-  .cal-add-event-btn {
-    display: none !important; /* Hide tiny add button inside cell on mobile, tap cell opens inspector */
-  }
-
-  .event-pill {
-    font-size: 9px !important;
-    padding: 1px 3px !important;
-    line-height: 1.25 !important;
-    border-radius: 3px !important;
-  }
-
-  .span-pill {
-    font-size: 8.5px !important;
-    padding: 1px 3px !important;
-  }
-}
-
-/* Responsive Scoped Tabs Bar */
-.project-view-tab-bar {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.project-view-tab-bar::-webkit-scrollbar {
-  display: none;
-}
-
-/* Responsive Kanban Board */
 @media (max-width: 768px) {
+  /* Sidebar Mobile Drawer */
+  #appSidebar {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Smooth Touch Momentum Scrolling */
+  .table-view-container,
+  .timeline-container,
+  .project-view-tab-bar,
+  #projectTabsList,
   .kanban-grid {
-    grid-template-columns: 1fr !important;
-    gap: 0.875rem !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Project View Tab Bar Mobile Layout */
+  .project-view-tab-bar {
+    gap: 8px;
+    margin-bottom: 1rem;
+    padding-bottom: 6px;
+  }
+
+  /* Kanban Horizontal Scrolling on Small Screens */
+  .kanban-grid {
+    display: flex;
+    overflow-x: auto;
+    gap: 12px;
+    padding-bottom: 8px;
+    scroll-snap-type: x mandatory;
   }
 
   .kanban-column {
-    min-height: auto !important;
+    min-width: 270px;
+    max-width: 300px;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+  }
+
+  /* Table Grid Touch & Width adjustments */
+  .table-view-container {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .spreadsheet-table {
+    min-width: 600px;
+  }
+
+  /* Clean Small Calendar in Mobile View */
+  #dashboardCalendarGrid,
+  #smartCalendarGrid,
+  #scopedCalendarGrid {
+    grid-auto-rows: minmax(46px, auto) !important;
+    gap: 3px !important;
+  }
+
+  .cal-day-cell {
+    min-height: 46px !important;
+    height: auto !important;
+    padding: 3px 4px !important;
+    border-radius: 6px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    gap: 2px !important;
+  }
+
+  .cal-day-header {
+    margin-bottom: 2px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+
+  .cal-day-header span {
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+  }
+
+  .cal-add-event-btn {
+    display: none !important;
+  }
+
+  .cal-events-container {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 2.5px !important;
+    max-height: 20px !important;
+    overflow: hidden !important;
+  }
+
+  .cal-events-container .event-pill {
+    width: 6px !important;
+    height: 6px !important;
+    min-width: 6px !important;
+    border-radius: 9999px !important;
+    padding: 0 !important;
+    font-size: 0 !important;
+    display: inline-block !important;
+    line-height: 0 !important;
+    border: none !important;
+  }
+
+  .cal-day-cell.current-day {
+    border-color: #8B5CF6 !important;
+    background-color: rgba(139, 92, 246, 0.08) !important;
+  }
+
+  /* Mobile Modals & Popovers */
+  #pageModalCard,
+  #universalAddModal > div,
+  #categoryModal > div,
+  #confirmationModal > div,
+  #subItemModal > div {
+    max-width: calc(100vw - 20px) !important;
+    width: 100% !important;
+    padding: 1rem !important;
+    margin: 0.5rem !important;
+    max-height: 92vh !important;
+  }
+
+  /* Page Modal Header & Action Buttons */
+  .modal-section-heading {
+    font-size: 11.5px;
+  }
+
+  /* Day Inspector Drawer/Modal on Mobile */
+  .day-inspector-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 12px !important;
+  }
+
+  /* Touch Target Ergonomics */
+  button, 
+  .sidebar-item-row,
+  .project-tab-btn,
+  .notion-priority-badge {
+    touch-action: manipulation;
   }
 }
 
-/* Responsive Timeline Gantt Chart */
-@media (max-width: 640px) {
+@media (max-width: 480px) {
+  .spreadsheet-table {
+    min-width: 520px;
+  }
+
   .timeline-container {
-    padding: 8px !important;
+    padding: 8px;
   }
 
   .timeline-header-days,
   .timeline-row {
-    grid-template-columns: 130px repeat(14, minmax(36px, 1fr)) !important;
-  }
-
-  .timeline-bar {
-    height: 20px !important;
-    font-size: 10px !important;
-    padding: 1px 5px !important;
+    grid-template-columns: 140px repeat(14, minmax(44px, 1fr));
   }
 }
 
-/* Responsive Notion Page Modal */
-@media (max-width: 640px) {
-  #pageModal {
-    padding: 0.5rem !important;
-    align-items: flex-end !important;
-  }
 
-  #pageModalCard {
-    max-height: 94vh !important;
-    max-height: 94dvh !important;
-    border-bottom-left-radius: 0 !important;
-    border-bottom-right-radius: 0 !important;
-    padding: 1rem 0.875rem !important;
-  }
-
-  .notion-page-title-input,
-  #pageTitleInput {
-    font-size: 1.25rem !important;
-  }
-
-  .notion-property-row {
-    grid-template-columns: 100px 1fr 24px !important;
-    min-height: 32px !important;
-    padding: 1px 2px !important;
-  }
-
-  .notion-property-label {
-    font-size: 0.75rem !important;
-    padding: 2px 4px !important;
-    gap: 4px !important;
-  }
-
-  .notion-ghost-input,
-  .notion-property-input,
-  .notion-date-pill-input {
-    font-size: 0.75rem !important;
-    padding: 2px 4px !important;
-  }
-
-  .notion-swatch-sq {
-    width: 18px !important;
-    height: 18px !important;
-  }
-}
-
-/* Responsive Popovers & Context Menus */
-.notion-popover-panel,
-.property-context-menu,
-.day-inspector-modal {
-  max-width: calc(100vw - 20px) !important;
-}
-
-@media (max-width: 480px) {
-  .notion-popover-panel {
-    width: 240px !important;
-  }
-}

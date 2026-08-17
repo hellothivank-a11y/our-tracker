@@ -1,14 +1,6 @@
-/**
- * ============================================================================
- * Nexus Studies Workspace & Master Calendar System — Production Release
- * Firebase Firestore Cloud Sync, Notion Multi-View Engine & Airtable Table Grid
- * ============================================================================
- */
-
 // ============================================================================
-// 1. FIREBASE FIRESTORE CLOUD INITIALIZATION & REAL-TIME SYNC
+// 0. FIREBASE REALTIME CLOUD BACKEND INTEGRATION
 // ============================================================================
-
 const firebaseConfig = {
   apiKey: "AIzaSyCi8Pg2cBKRZJSxmguH6DAqEEFkzTElLs4",
   authDomain: "couple-tracker-app-8b186.firebaseapp.com",
@@ -19,97 +11,126 @@ const firebaseConfig = {
 };
 
 let db = null;
-let isFirebaseOnline = false;
+let isFirebaseInitialized = false;
+let isApplyingRemoteSnapshot = false;
+let cloudSaveTimer = null;
 
-function initFirebaseSync() {
-  const cloudDot = document.getElementById("cloudSyncDot");
-  const cloudLabel = document.getElementById("cloudSyncLabel");
-
-  function setSyncStatus(status, labelText) {
-    if (cloudDot) {
-      cloudDot.className = "cloud-sync-dot " + (status === "syncing" ? "syncing" : (status === "offline" ? "offline" : ""));
-    }
-    if (cloudLabel) {
-      cloudLabel.textContent = labelText;
-    }
+function updateCloudSyncBadge(status) {
+  const badge = document.getElementById("cloudSyncStatus");
+  if (!badge) return;
+  if (status === "synced") {
+    badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-sm shrink-0"></span><span class="text-emerald-500 dark:text-emerald-400 font-medium">Synced</span>`;
+  } else if (status === "syncing") {
+    badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-ping shrink-0"></span><span class="text-sky-400 font-medium">Syncing...</span>`;
+  } else if (status === "offline") {
+    badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-zinc-500 shrink-0"></span><span class="text-zinc-500">Local Only</span>`;
+  } else if (status === "error") {
+    badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span><span class="text-rose-400 font-medium">Sync Error</span>`;
   }
+}
 
+function initFirebase() {
   try {
-    if (typeof firebase !== 'undefined' && firebase.initializeApp) {
+    if (typeof firebase !== "undefined") {
       if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
       }
       db = firebase.firestore();
-      isFirebaseOnline = true;
-      setSyncStatus("online", "Cloud Synced");
-
-      // Setup Real-time Snapshot Listeners
-      db.collection("studies_workspace").doc("master_data").onSnapshot((doc) => {
-        if (doc.exists) {
-          const remoteData = doc.data();
-          if (remoteData.items) {
-            AppState.studies.items = remoteData.items;
-            localStorage.setItem(STORAGE_KEYS.STUDIES_ITEMS, JSON.stringify(remoteData.items));
-          }
-          if (remoteData.categories) {
-            AppState.studies.categories = remoteData.categories;
-            localStorage.setItem(STORAGE_KEYS.STUDIES_CATEGORIES, JSON.stringify(remoteData.categories));
-          }
-          if (remoteData.todos) {
-            AppState.studies.todos = remoteData.todos;
-            localStorage.setItem(STORAGE_KEYS.STUDIES_TODOS, JSON.stringify(remoteData.todos));
-          }
-          renderHierarchicalSidebar();
-          syncAllWorkspaceViews();
-          setSyncStatus("online", "Cloud Synced");
-        }
-      }, (error) => {
-        console.warn("Firestore listener fallback to localStorage:", error);
-        setSyncStatus("offline", "Offline (Local)");
-      });
-
+      isFirebaseInitialized = true;
+      updateCloudSyncBadge("synced");
+      subscribeToCloudData();
     } else {
-      setSyncStatus("offline", "Offline (Local)");
+      updateCloudSyncBadge("offline");
     }
   } catch (err) {
-    console.warn("Firebase initialization skipped, running in local-first mode:", err);
-    setSyncStatus("offline", "Offline (Local)");
+    console.warn("Firebase Init Notice:", err);
+    updateCloudSyncBadge("offline");
   }
 }
 
-function syncToCloud() {
-  const cloudDot = document.getElementById("cloudSyncDot");
-  const cloudLabel = document.getElementById("cloudSyncLabel");
+function syncDomainToCloud() {
+  if (!isFirebaseInitialized || !db || isApplyingRemoteSnapshot) return;
+  updateCloudSyncBadge("syncing");
+  clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = setTimeout(async () => {
+    try {
+      await db.collection("nexus_study_workspace").doc("main_study_data").set({
+        categories: AppState.studies.categories,
+        items: AppState.studies.items,
+        rootColumns: AppState.studies.rootTableColumns || [],
+        todos: AppState.studies.todos || [],
+        scratchpad: localStorage.getItem("nexus_study_scratchpad") || "",
+        homeWidget: localStorage.getItem("nexus_home_widget") || "dayschools",
+        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      updateCloudSyncBadge("synced");
+    } catch (e) {
+      console.warn("Cloud save error:", e);
+      updateCloudSyncBadge("error");
+    }
+  }, 450);
+}
 
-  if (cloudDot) cloudDot.className = "cloud-sync-dot syncing";
-  if (cloudLabel) cloudLabel.textContent = "Syncing...";
+function subscribeToCloudData() {
+  if (!isFirebaseInitialized || !db) return;
+  db.collection("nexus_study_workspace").doc("main_study_data")
+    .onSnapshot((doc) => {
+      if (doc.exists) {
+        const data = doc.data();
+        isApplyingRemoteSnapshot = true;
+        let hasUpdates = false;
 
-  if (db && isFirebaseOnline) {
-    db.collection("studies_workspace").doc("master_data").set({
-      items: AppState.studies.items,
-      categories: AppState.studies.categories,
-      todos: AppState.studies.todos,
-      rootViews: AppState.studies.rootViews,
-      rootColumns: AppState.studies.rootTableColumns,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true }).then(() => {
-      if (cloudDot) cloudDot.className = "cloud-sync-dot";
-      if (cloudLabel) cloudLabel.textContent = "Cloud Synced";
-    }).catch(err => {
-      console.warn("Cloud sync write error:", err);
-      if (cloudDot) cloudDot.className = "cloud-sync-dot offline";
-      if (cloudLabel) cloudLabel.textContent = "Offline (Local)";
+        if (data.categories && Array.isArray(data.categories) && data.categories.length > 0) {
+          AppState.studies.categories = data.categories;
+          localStorage.setItem(STORAGE_KEYS.STUDIES_CATEGORIES, JSON.stringify(AppState.studies.categories));
+          hasUpdates = true;
+        }
+        if (data.items && Array.isArray(data.items)) {
+          AppState.studies.items = data.items;
+          localStorage.setItem(STORAGE_KEYS.STUDIES_ITEMS, JSON.stringify(AppState.studies.items));
+          hasUpdates = true;
+        }
+        if (data.rootColumns && Array.isArray(data.rootColumns)) {
+          AppState.studies.rootTableColumns = data.rootColumns;
+          localStorage.setItem(STORAGE_KEYS.STUDIES_ROOT_COLUMNS, JSON.stringify(AppState.studies.rootTableColumns));
+          hasUpdates = true;
+        }
+        if (data.todos && Array.isArray(data.todos)) {
+          AppState.studies.todos = data.todos;
+          localStorage.setItem(STORAGE_KEYS.STUDIES_TODOS, JSON.stringify(AppState.studies.todos));
+          hasUpdates = true;
+        }
+        if (data.scratchpad !== undefined) {
+          localStorage.setItem("nexus_study_scratchpad", data.scratchpad);
+        }
+        if (data.homeWidget) {
+          localStorage.setItem("nexus_home_widget", data.homeWidget);
+        }
+
+        if (hasUpdates) {
+          renderHierarchicalSidebar();
+          syncAllWorkspaceViews();
+        }
+        updateCloudSyncBadge("synced");
+        isApplyingRemoteSnapshot = false;
+      } else {
+        syncDomainToCloud();
+      }
+    }, (err) => {
+      console.warn("Firestore snapshot listener:", err);
+      updateCloudSyncBadge("offline");
     });
-  } else {
-    setTimeout(() => {
-      if (cloudDot) cloudDot.className = "cloud-sync-dot offline";
-      if (cloudLabel) cloudLabel.textContent = "Offline (Local)";
-    }, 400);
-  }
 }
+
+/**
+ * ============================================================================
+ * Nexus Workspace Engine — Domain Separation & Modular State Architecture
+ * Studies Master Overview, Priority Engine, Customizable Data Table & Multi-Views
+ * ============================================================================
+ */
 
 // ============================================================================
-// 2. DATE NORMALIZATION & UTILITIES
+// 1. DATE NORMALIZATION & UTILITIES
 // ============================================================================
 
 function getTodayISO() {
@@ -145,7 +166,7 @@ function formatPrettyDate(dateStr) {
 }
 
 // ============================================================================
-// 3. STUDIES DOMAIN STATE ARCHITECTURE (AppState)
+// 2. MODULAR DOMAIN STATE ARCHITECTURE (AppState)
 // ============================================================================
 const NOTION_COLORS = [
   { key: "gray", label: "Gray", tagClass: "notion-tag-gray", swatchClass: "gray" },
@@ -167,12 +188,12 @@ const PRIORITY_LEVELS = [
 ];
 
 const DEFAULT_TABLE_COLUMNS = [
-  { id: "col_title", key: "title", name: "Task / Item Name", type: "title", width: "28%" },
-  { id: "col_status", key: "status", name: "Status", type: "status", width: "13%" },
+  { id: "col_title", key: "title", name: "Task / Item Name", type: "title", width: "30%" },
+  { id: "col_status", key: "status", name: "Status", type: "status", width: "14%" },
   { id: "col_priority", key: "priority", name: "Priority", type: "priority", width: "13%" },
-  { id: "col_date", key: "date", name: "Date Schedule", type: "date", width: "16%" },
-  { id: "col_drive", key: "drive", name: "Drive Resource", type: "drive", width: "16%" },
-  { id: "col_category", key: "categoryId", name: "Scope / Module", type: "category", width: "14%" }
+  { id: "col_date", key: "date", name: "Date Schedule", type: "date", width: "18%" },
+  { id: "col_category", key: "categoryId", name: "Scope / Module", type: "category", width: "13%" },
+  { id: "col_url", key: "url", name: "Attachment / URL", type: "url", width: "12%" }
 ];
 
 const STUDY_QUOTES = [
@@ -184,8 +205,9 @@ const STUDY_QUOTES = [
   "\"Protect your peak hours with relentless focus.\""
 ];
 
-// Production Studies State Container
+// Top-Level Domain Segregated State Container
 const AppState = {
+  // 1. Studies Domain (Active Implementation Focus)
   studies: {
     rootViews: ["calendar", "table", "board", "todo", "timeline"],
     rootTableColumns: [...DEFAULT_TABLE_COLUMNS],
@@ -195,16 +217,37 @@ const AppState = {
       { id: "sub_exams", title: "Exams", view: "calendar", icon: "file-text", activeViews: ["calendar", "table"], tableColumns: [...DEFAULT_TABLE_COLUMNS] },
       { id: "sub_assignments", title: "Assignments", view: "table", icon: "clipboard-check", activeViews: ["table", "board", "calendar", "todo"], tableColumns: [...DEFAULT_TABLE_COLUMNS] }
     ],
-    items: [],
-    todos: []
+    items: [], // Scoped Day School recordings, Viva dates, Exam schedules, Assignment tasks
+    todos: []  // Studies-specific Quick Focus / Scratchpad items
   },
 
+  // 2. Office Domain (Independent Namespace)
+  office: {
+    events: [],
+    otLogs: [],
+    leaves: [],
+    todos: [],
+    otConfig: {
+      normalHours: 8,
+      otHours: 18,
+      hourlyRate: 25
+    }
+  },
+
+  // 3. Financial Domain (Independent Namespace)
+  financial: {
+    transactions: [],
+    budgets: [],
+    groceryList: []
+  },
+
+  // 4. Global UI & Runtime State
   ui: {
     theme: "dark",
     currentView: "view-today",
-    activeSubPageId: "studies_root",
-    activeScopedLayout: "calendar",
-    homeBottomWidget: "dayschools",
+    activeDomain: "studies",        // 'studies' | 'office' | 'financial'
+    activeSubPageId: "studies_root", // 'studies_root' or specific sub-category id
+    activeScopedLayout: "calendar",  // 'table' | 'board' | 'calendar' | 'media' | 'timeline' | 'todo'
     scopedStatusFilter: "all",
     calendar: {
       currentDate: new Date(),
@@ -226,10 +269,10 @@ const AppState = {
     activeTagEditOption: null,
     activeStatusEditOption: null,
     activeEditingPropertyIndex: null,
-    activeColumnContext: null,
-    draggedColumnIndex: null
+    activeColumnContext: null
   },
 
+  // 5. Shared Metadata / Select Options Cache
   selectOptionsCache: [
     { id: "opt_cs", name: "Computer Science", color: "pink" },
     { id: "opt_ds", name: "Distributed Systems", color: "purple" },
@@ -240,6 +283,7 @@ const AppState = {
     { id: "opt_mid", name: "Medium Priority", color: "yellow" }
   ],
 
+  // 6. Shared Status Options Cache
   statusOptionsCache: [
     { id: "st_not_started", name: "Not Started", color: "gray" },
     { id: "st_in_progress", name: "In Progress", color: "yellow" },
@@ -249,24 +293,25 @@ const AppState = {
   ]
 };
 
+// Domain Storage Keys
 const STORAGE_KEYS = {
-  STUDIES_ITEMS: "nexus_studies_items_v5",
-  STUDIES_CATEGORIES: "nexus_studies_categories_v5",
-  STUDIES_TODOS: "nexus_studies_todos_v5",
-  STUDIES_ROOT_VIEWS: "nexus_studies_root_views_v5",
-  STUDIES_ROOT_COLUMNS: "nexus_studies_root_columns_v5",
-  HOME_BOTTOM_WIDGET: "nexus_home_bottom_widget_v5",
-  HOME_SCRATCHPAD: "nexus_home_scratchpad_v5",
-  SELECT_OPTIONS: "nexus_select_options_v5",
-  STATUS_OPTIONS: "nexus_status_options_v5"
+  STUDIES_ITEMS: "nexus_studies_items_v4",
+  STUDIES_CATEGORIES: "nexus_studies_categories_v4",
+  STUDIES_TODOS: "nexus_studies_todos_v4",
+  STUDIES_ROOT_VIEWS: "nexus_studies_root_views_v4",
+  STUDIES_ROOT_COLUMNS: "nexus_studies_root_columns_v4",
+  SELECT_OPTIONS: "nexus_select_options_v4",
+  STATUS_OPTIONS: "nexus_status_options_v4"
 };
 
-function saveDomain(key, data) {
+function saveDomain(key, data, syncCloud = true) {
   try {
     localStorage.setItem(key, JSON.stringify(data));
-    syncToCloud();
+    if (syncCloud) {
+      syncDomainToCloud();
+    }
   } catch (e) {
-    console.error("Storage error:", e);
+    console.error("Local storage error:", e);
   }
 }
 
@@ -280,39 +325,7 @@ function getDomain(key, defaultVal) {
 }
 
 // ============================================================================
-// 4. GLOBAL TOAST NOTIFICATION SYSTEM (#toastContainer)
-// ============================================================================
-
-function showToast(message, type = "info") {
-  const container = document.getElementById("toastContainer");
-  if (!container) return;
-
-  const toast = document.createElement("div");
-  toast.className = `toast-item toast-${type}`;
-
-  let iconName = "info";
-  if (type === "success") iconName = "check-circle-2";
-  else if (type === "error") iconName = "trash-2";
-
-  toast.innerHTML = `
-    <i data-lucide="${iconName}" class="w-4 h-4 shrink-0"></i>
-    <span class="truncate">${escapeHtml(message)}</span>
-  `;
-
-  container.appendChild(toast);
-  if (typeof lucide !== 'undefined' && lucide.createIcons) {
-    lucide.createIcons();
-  }
-
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(12px) scale(0.95)';
-    setTimeout(() => toast.remove(), 200);
-  }, 3000);
-}
-
-// ============================================================================
-// 5. PRIORITY HELPER & FAST CYCLING ENGINE
+// 3. PRIORITY HELPER & FAST CYCLING ENGINE
 // ============================================================================
 
 function getPriorityInfo(priorityKey) {
@@ -336,7 +349,8 @@ function cyclePriority(item) {
   }
 
   item.priority = nextPriority;
-
+  
+  // Sync to property array if exists
   if (item.properties) {
     const pProp = item.properties.find(p => p.type === "priority");
     if (pProp) {
@@ -346,7 +360,7 @@ function cyclePriority(item) {
   }
 
   saveStudyItem(item, { showNotification: false });
-  showToast(`Priority updated to ${nextPriority}`, "info");
+  showToast(`Priority: ${nextPriority}`, "info");
 }
 
 function cycleStatus(item) {
@@ -366,6 +380,7 @@ function cycleStatus(item) {
   item.status = nextStatus;
   item.completed = nextStatus === "done";
 
+  // Sync to status property if exists
   if (item.properties) {
     const sProp = item.properties.find(p => p.type === "status");
     if (sProp) {
@@ -380,10 +395,10 @@ function cycleStatus(item) {
 }
 
 // ============================================================================
-// 6. STUDIES DOMAIN DATA ENGINE & TWO-WAY SYNC
+// 4. STUDIES DOMAIN DATA ENGINE & TWO-WAY SYNC
 // ============================================================================
 
-function saveStudyItem(itemObj, options = { showNotification: true, isNew: false }) {
+function saveStudyItem(itemObj, options = { showNotification: true }) {
   if (!itemObj || !itemObj.id) return;
 
   itemObj.date = normalizeDateStr(itemObj.date);
@@ -395,11 +410,13 @@ function saveStudyItem(itemObj, options = { showNotification: true, isNew: false
     itemObj.priority = "None";
   }
 
+  // If adding from root, default to first category (Day Schools)
   if (!itemObj.categoryId || itemObj.categoryId === "studies_root") {
     itemObj.categoryId = AppState.studies.categories[0]?.id || "sub_dayschool";
   }
 
   const existingIndex = AppState.studies.items.findIndex(e => e.id === itemObj.id);
+  const isNew = existingIndex < 0;
   if (existingIndex >= 0) {
     AppState.studies.items[existingIndex] = { ...AppState.studies.items[existingIndex], ...itemObj };
   } else {
@@ -410,7 +427,7 @@ function saveStudyItem(itemObj, options = { showNotification: true, isNew: false
   syncAllWorkspaceViews();
 
   if (options.showNotification) {
-    if (options.isNew) {
+    if (isNew) {
       showToast("Record added successfully", "success");
     } else {
       showToast("Changes saved", "info");
@@ -422,14 +439,14 @@ function deleteStudyItem(itemId, options = { showNotification: true }) {
   if (!itemId) return;
 
   const target = AppState.studies.items.find(e => e.id === itemId);
-  const targetTitle = target ? target.title : "Item";
+  const targetTitle = target ? target.title : "Record";
 
   AppState.studies.items = AppState.studies.items.filter(e => e.id !== itemId);
   saveDomain(STORAGE_KEYS.STUDIES_ITEMS, AppState.studies.items);
   syncAllWorkspaceViews();
 
   if (options.showNotification) {
-    showToast("Record deleted", "error");
+    showToast(`Record deleted`, "error");
   }
 }
 
@@ -441,7 +458,7 @@ function syncAllWorkspaceViews() {
   renderTodayChecklist();
   renderDashboardCalendar();
   renderUpcomingDeadlines();
-  renderHomeBottomWidget(AppState.ui.homeBottomWidget);
+  renderHomeBottomWidget();
   renderSmartCalendar();
 
   if (AppState.ui.currentView === "view-project-scoped") {
@@ -450,7 +467,7 @@ function syncAllWorkspaceViews() {
 }
 
 // ============================================================================
-// 7. THEME ENGINE (DARK / LIGHT / SYSTEM SYNC)
+// 5. THEME ENGINE (DARK / LIGHT / SYSTEM SYNC)
 // ============================================================================
 function initThemeEngine() {
   const savedTheme = localStorage.getItem("nexus_theme") || "dark";
@@ -499,30 +516,32 @@ function applyTheme(themeMode) {
       btn.classList.add("text-zinc-500");
     }
   });
+
+  const themeLabel = document.getElementById("themeModeLabel");
+  if (themeLabel) {
+    themeLabel.textContent = themeMode;
+  }
 }
 
 // ============================================================================
-// 8. UNIVERSAL NOTION-STYLE CONFIRMATION MODAL CONTROLLER
+// 6. CENTRALIZED CONFIRMATION MODAL CONTROLLER
 // ============================================================================
 let pendingDeleteCallback = null;
-const deleteConfirmModal = document.getElementById("deleteConfirmModal") || document.getElementById("confirmationModal");
+const deleteConfirmModal = document.getElementById("confirmationModal") || document.getElementById("deleteConfirmModal");
 const deleteModalTitle = document.getElementById("deleteModalTitle");
 const deleteModalDesc = document.getElementById("deleteModalDesc");
 const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
 const cancelDeleteBtn = document.getElementById("cancelDeleteBtn");
 const closeDeleteModalBtn = document.getElementById("closeDeleteModalBtn");
 
-function confirmDeletion({ title = "Delete Item?", desc = "This will permanently remove this module and all its associated records. This action cannot be undone.", onConfirm }) {
+function confirmDeletion({ title = "Delete Item?", desc = "Are you sure you want to delete this item? This action cannot be undone.", onConfirm }) {
   if (!deleteConfirmModal) {
     if (onConfirm) onConfirm();
     return;
   }
 
   if (deleteModalTitle) {
-    deleteModalTitle.innerHTML = `
-      <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-500"></i>
-      <span>${escapeHtml(title)}</span>
-    `;
+    deleteModalTitle.innerHTML = `<i data-lucide="alert-triangle" class="w-4 h-4 text-rose-500 shrink-0"></i><span>${escapeHtml(title)}</span>`;
     if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
   }
 
@@ -587,7 +606,7 @@ window.addEventListener("keydown", (e) => {
 });
 
 // ============================================================================
-// 9. SEED & LOAD DOMAIN DATA
+// 7. SEED & LOAD DOMAIN DATA
 // ============================================================================
 function seedInitialDomainData() {
   const today = new Date();
@@ -624,13 +643,11 @@ function seedInitialDomainData() {
         properties: [
           { id: "p1", name: "Status", type: "status", value: "Not Started", color: "gray" },
           { id: "p2", name: "Priority", type: "priority", value: "Urgent", color: "red" },
-          { id: "p3", name: "Subject", type: "select", value: "Distributed Systems", color: "purple" },
-          { id: "p4", name: "Drive Resource", type: "drive", value: "https://drive.google.com/drive/folders/cs502_lecture3" }
+          { id: "p3", name: "Subject", type: "select", value: "Distributed Systems", color: "purple" }
         ],
         meta: {
           subject: "Distributed Systems (CS502)",
           videoUrl: "https://zoom.us",
-          driveUrl: "https://drive.google.com/drive/folders/cs502_lecture3",
           watched: false
         }
       },
@@ -653,13 +670,11 @@ function seedInitialDomainData() {
         properties: [
           { id: "p1", name: "Status", type: "status", value: "Not Started", color: "gray" },
           { id: "p2", name: "Priority", type: "priority", value: "Medium", color: "yellow" },
-          { id: "p3", name: "Subject", type: "select", value: "Computer Science", color: "pink" },
-          { id: "p4", name: "Drive Resource", type: "drive", value: "https://drive.google.com/drive/folders/cs401_lecture4" }
+          { id: "p3", name: "Subject", type: "select", value: "Computer Science", color: "pink" }
         ],
         meta: {
           subject: "Computer Science (CS401)",
           videoUrl: "https://zoom.us",
-          driveUrl: "https://drive.google.com/drive/folders/cs401_lecture4",
           watched: false
         }
       },
@@ -682,10 +697,9 @@ function seedInitialDomainData() {
         properties: [
           { id: "p1", name: "Status", type: "status", value: "Review", color: "purple" },
           { id: "p2", name: "Priority", type: "priority", value: "Urgent", color: "red" },
-          { id: "p3", name: "Subject", type: "select", value: "Distributed Systems", color: "purple" },
-          { id: "p4", name: "Lead Examiner", type: "phone", value: "+1 415-555-0192" }
+          { id: "p3", name: "Subject", type: "select", value: "Distributed Systems", color: "purple" }
         ],
-        meta: { subject: "CS502", phone: "+1 415-555-0192" }
+        meta: { subject: "CS502" }
       },
       {
         id: "evt_exam_1",
@@ -708,38 +722,7 @@ function seedInitialDomainData() {
           { id: "p2", name: "Priority", type: "priority", value: "Urgent", color: "red" },
           { id: "p3", name: "Subject", type: "select", value: "Computer Science", color: "pink" }
         ],
-        meta: {
-          subject: "Computer Science (CS401)",
-          papers: { "2023": true, "2024": true, "2025": false },
-          confidence: "High"
-        }
-      },
-      {
-        id: "evt_exam_2",
-        categoryId: "sub_exams",
-        module: "exam",
-        title: "Distributed Systems & Cloud Architecture Exam",
-        priority: "Urgent",
-        date: fmtDate(8),
-        endDate: "",
-        isRange: false,
-        includeTime: true,
-        startTime: "13:00",
-        endTime: "16:00",
-        color: "purple",
-        status: "not-started",
-        completed: false,
-        notes: "Paxos, Raft, Byzantine fault tolerance and DynamoDB partitioning.",
-        properties: [
-          { id: "p1", name: "Status", type: "status", value: "Not Started", color: "gray" },
-          { id: "p2", name: "Priority", type: "priority", value: "Urgent", color: "red" },
-          { id: "p3", name: "Subject", type: "select", value: "Distributed Systems", color: "purple" }
-        ],
-        meta: {
-          subject: "Distributed Systems (CS502)",
-          papers: { "2023": true, "2024": false, "2025": false },
-          confidence: "Medium"
-        }
+        meta: { subject: "CS401" }
       },
       {
         id: "evt_assign_1",
@@ -758,10 +741,29 @@ function seedInitialDomainData() {
         properties: [
           { id: "p1", name: "Status", type: "status", value: "Done", color: "green" },
           { id: "p2", name: "Priority", type: "priority", value: "Medium", color: "yellow" },
-          { id: "p3", name: "Subject", type: "select", value: "Machine Learning", color: "orange" },
-          { id: "p4", name: "Drive Resource", type: "drive", value: "https://drive.google.com/drive/folders/kaggle_cnn_submission" }
+          { id: "p3", name: "Subject", type: "select", value: "Machine Learning", color: "orange" }
         ],
-        meta: { subject: "Machine Learning (CS404)", driveUrl: "https://drive.google.com/drive/folders/kaggle_cnn_submission" }
+        meta: { subject: "Machine Learning (CS404)" }
+      },
+      {
+        id: "evt_assign_2",
+        categoryId: "sub_assignments",
+        module: "task",
+        title: "Complete Chapter 5 Exercise: Deadlock Detection Algorithm",
+        priority: "Low",
+        date: fmtDate(0),
+        endDate: "",
+        isRange: false,
+        includeTime: false,
+        color: "yellow",
+        status: "not-started",
+        completed: false,
+        notes: "Implement Banker's Algorithm in Python.",
+        properties: [
+          { id: "p1", name: "Status", type: "status", value: "Not Started", color: "gray" },
+          { id: "p2", name: "Priority", type: "priority", value: "Low", color: "blue" }
+        ],
+        meta: {}
       }
     ];
     saveDomain(STORAGE_KEYS.STUDIES_ITEMS, initialStudiesItems);
@@ -775,25 +777,34 @@ function seedInitialDomainData() {
     ];
     saveDomain(STORAGE_KEYS.STUDIES_TODOS, initialStudiesTodos);
   }
+
+  if (!getDomain(STORAGE_KEYS.OFFICE, null)) {
+    saveDomain(STORAGE_KEYS.OFFICE, AppState.office);
+  }
+
+  if (!getDomain(STORAGE_KEYS.FINANCIAL, null)) {
+    saveDomain(STORAGE_KEYS.FINANCIAL, AppState.financial);
+  }
 }
 
 function loadStateFromStorage() {
   seedInitialDomainData();
-
+  
   AppState.studies.items = getDomain(STORAGE_KEYS.STUDIES_ITEMS, []);
   AppState.studies.categories = getDomain(STORAGE_KEYS.STUDIES_CATEGORIES, AppState.studies.categories);
   AppState.studies.rootViews = getDomain(STORAGE_KEYS.STUDIES_ROOT_VIEWS, AppState.studies.rootViews);
   AppState.studies.rootTableColumns = getDomain(STORAGE_KEYS.STUDIES_ROOT_COLUMNS, AppState.studies.rootTableColumns || DEFAULT_TABLE_COLUMNS);
   AppState.studies.todos = getDomain(STORAGE_KEYS.STUDIES_TODOS, []);
-
-  AppState.ui.homeBottomWidget = localStorage.getItem(STORAGE_KEYS.HOME_BOTTOM_WIDGET) || "dayschools";
+  
+  AppState.office = getDomain(STORAGE_KEYS.OFFICE, AppState.office);
+  AppState.financial = getDomain(STORAGE_KEYS.FINANCIAL, AppState.financial);
 
   AppState.selectOptionsCache = getDomain(STORAGE_KEYS.SELECT_OPTIONS, AppState.selectOptionsCache);
   AppState.statusOptionsCache = getDomain(STORAGE_KEYS.STATUS_OPTIONS, AppState.statusOptionsCache);
 }
 
 // ============================================================================
-// 10. SIDEBAR RENDERING (Strictly Studies Domain)
+// 8. SIDEBAR RENDERING (Studies Root Default to Master Overview Calendar)
 // ============================================================================
 const sidebarCategoriesContainer = document.getElementById("sidebarCategoriesContainer");
 const addCustomCategoryBtn = document.getElementById("addCustomCategoryBtn");
@@ -824,14 +835,14 @@ function renderHierarchicalSidebar() {
 
   const studiesHeaderEl = document.createElement("div");
   studiesHeaderEl.className = `sidebar-item-row category-header-row group ${isStudiesRootActive ? 'active' : ''}`;
-
+  
   studiesHeaderEl.innerHTML = `
     <div class="drag-gutter category-drag-handle" title="Reorder">
       <i data-lucide="grip-vertical" class="w-3.5 h-3.5"></i>
     </div>
 
-    <div class="row-label-group" id="studiesRootNav">
-      <button class="accordion-toggle-btn text-[var(--text-muted)] hover:text-[var(--text-primary)] p-0.5" id="studiesAccordionToggle">
+    <div class="row-label-group flex items-center gap-2" id="studiesRootNav">
+      <button class="accordion-toggle-btn w-4 h-4 flex items-center justify-center shrink-0 text-[var(--text-muted)] hover:text-[var(--text-primary)]" id="studiesAccordionToggle">
         <i data-lucide="chevron-right" class="accordion-chevron expanded"></i>
       </button>
       <i data-lucide="book-open" class="sidebar-icon text-indigo-500"></i>
@@ -846,7 +857,7 @@ function renderHierarchicalSidebar() {
   `;
 
   const studiesSubContainer = document.createElement("div");
-  studiesSubContainer.className = "sub-items-container pl-3 space-y-0.5 accordion-content";
+  studiesSubContainer.className = "sub-items-container space-y-0.5 accordion-content";
   studiesSubContainer.id = "studiesSubItemsContainer";
 
   AppState.studies.categories.forEach(sub => {
@@ -860,14 +871,14 @@ function renderHierarchicalSidebar() {
         <i data-lucide="grip-vertical" class="w-3.5 h-3.5"></i>
       </div>
 
-      <div class="row-label-group pl-1">
+      <div class="row-label-group flex items-center gap-2">
         <i data-lucide="${sub.icon || 'file-text'}" class="sidebar-icon"></i>
         <span class="subitem-title-text truncate">${escapeHtml(sub.title)}</span>
       </div>
 
       <div class="row-actions">
         <button class="action-btn delete-btn delete-study-sub-btn" data-sub-id="${sub.id}" title="Delete ${escapeHtml(sub.title)}">
-          <i data-lucide="trash-2" class="w-3 h-3"></i>
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
         </button>
       </div>
     `;
@@ -882,21 +893,19 @@ function renderHierarchicalSidebar() {
         e.stopPropagation();
         confirmDeletion({
           title: `Delete ${sub.title}?`,
-          desc: `This will permanently remove "${sub.title}" and all its associated records from Studies. This action cannot be undone.`,
+          desc: "This will permanently remove this module and all its associated records. This action cannot be undone.",
           onConfirm: () => {
             AppState.studies.categories = AppState.studies.categories.filter(s => s.id !== sub.id);
             AppState.studies.items = AppState.studies.items.filter(item => item.categoryId !== sub.id);
-
             saveDomain(STORAGE_KEYS.STUDIES_CATEGORIES, AppState.studies.categories);
             saveDomain(STORAGE_KEYS.STUDIES_ITEMS, AppState.studies.items);
-
             renderHierarchicalSidebar();
-            syncAllWorkspaceViews();
-
             if (AppState.ui.activeSubPageId === sub.id) {
               navigateToStudiesRoot();
+            } else if (AppState.ui.currentView === "view-today") {
+              renderHomeBottomWidget();
             }
-            showToast(`Module "${sub.title}" and associated records deleted`, "error");
+            showToast(`Deleted ${sub.title}`, "error");
           }
         });
       });
@@ -905,6 +914,7 @@ function renderHierarchicalSidebar() {
     studiesSubContainer.appendChild(itemEl);
   });
 
+  // Clicking the main "Studies" root navigates to Studies Master Overview & Calendar
   studiesHeaderEl.querySelector("#studiesRootNav").addEventListener("click", () => {
     navigateToStudiesRoot();
   });
@@ -930,6 +940,18 @@ function renderHierarchicalSidebar() {
   studiesBlock.appendChild(studiesSubContainer);
   sidebarCategoriesContainer.appendChild(studiesBlock);
 
+  // Future Isolated Namespaces
+  const officeBlock = createDomainSidebarSection("Office Work", "briefcase", "office", [
+    { title: "Sprint Tasks", icon: "kanban", action: () => showToast("Office module namespace ready", "info") },
+    { title: "OT & Time Logs", icon: "calculator", action: () => navigateToView("view-work") }
+  ]);
+  sidebarCategoriesContainer.appendChild(officeBlock);
+
+  const financialBlock = createDomainSidebarSection("Financial", "wallet", "financial", [
+    { title: "Expenses & Budgets", icon: "receipt", action: () => showToast("Financial module namespace ready", "info") }
+  ]);
+  sidebarCategoriesContainer.appendChild(financialBlock);
+
   const sortableSub = new Sortable(studiesSubContainer, {
     animation: 150,
     handle: '.item-drag-handle',
@@ -950,6 +972,51 @@ function renderHierarchicalSidebar() {
   if (typeof lucide !== 'undefined' && lucide.createIcons) {
     lucide.createIcons();
   }
+}
+
+function createDomainSidebarSection(title, icon, domainKey, items) {
+  const block = document.createElement("div");
+  block.className = "category-block mb-2";
+
+  const headerEl = document.createElement("div");
+  headerEl.className = "sidebar-item-row category-header-row group";
+  headerEl.innerHTML = `
+    <div class="drag-gutter"><i data-lucide="grip-vertical" class="w-3.5 h-3.5"></i></div>
+    <div class="row-label-group flex items-center gap-2">
+      <button class="accordion-toggle-btn w-4 h-4 flex items-center justify-center shrink-0 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+        <i data-lucide="chevron-right" class="accordion-chevron expanded"></i>
+      </button>
+      <i data-lucide="${icon}" class="sidebar-icon"></i>
+      <span class="category-title-text truncate">${escapeHtml(title)}</span>
+    </div>
+  `;
+
+  const subContainer = document.createElement("div");
+  subContainer.className = "sub-items-container space-y-0.5 accordion-content";
+
+  items.forEach(item => {
+    const row = document.createElement("div");
+    row.className = "sidebar-item-row subitem-row group";
+    row.innerHTML = `
+      <div class="drag-gutter"><i data-lucide="grip-vertical" class="w-3.5 h-3.5"></i></div>
+      <div class="row-label-group flex items-center gap-2">
+        <i data-lucide="${item.icon}" class="sidebar-icon"></i>
+        <span class="subitem-title-text truncate">${escapeHtml(item.title)}</span>
+      </div>
+    `;
+    row.addEventListener("click", item.action);
+    subContainer.appendChild(row);
+  });
+
+  headerEl.querySelector(".accordion-toggle-btn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    subContainer.classList.toggle("collapsed");
+    headerEl.querySelector("i.accordion-chevron").classList.toggle("expanded");
+  });
+
+  block.appendChild(headerEl);
+  block.appendChild(subContainer);
+  return block;
 }
 
 if (addCustomCategoryBtn) {
@@ -986,7 +1053,7 @@ if (categoryForm) {
     categoryForm.reset();
 
     navigateToStudySubPage(newSub.id, primaryView);
-    showToast(`Study module "${title}" created`, "success");
+    showToast(`Study module "${title}" created`, "info");
   });
 }
 
@@ -1014,7 +1081,7 @@ if (subItemForm) {
     saveDomain(STORAGE_KEYS.STUDIES_CATEGORIES, AppState.studies.categories);
     renderHierarchicalSidebar();
     navigateToStudySubPage(newSub.id, targetView);
-    showToast(`Added "${name}" to Studies`, "success");
+    showToast(`Added "${name}" to Studies`, "info");
 
     subItemModal.classList.add("hidden");
     subItemForm.reset();
@@ -1022,7 +1089,7 @@ if (subItemForm) {
 }
 
 // ============================================================================
-// 11. REAL-TIME CLOCK & NAVIGATION ROUTING
+// 9. REAL-TIME CLOCK & NAVIGATION ROUTING
 // ============================================================================
 function initRealTimeClock() {
   const clockEl = document.getElementById("liveClockDisplay");
@@ -1033,7 +1100,7 @@ function initRealTimeClock() {
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const seconds = String(now.getSeconds()).padStart(2, '0');
-
+    
     if (clockEl) clockEl.textContent = `${hours}:${minutes}:${seconds}`;
     if (dateEl) {
       const options = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
@@ -1048,11 +1115,65 @@ function initRealTimeClock() {
 const VIEW_HEADINGS = {
   "view-today": "Today's Focus",
   "view-calendar": "Master Calendar",
+  "view-work": "Work & OT Calculator",
   "view-project-scoped": "Studies Workspace"
 };
 
+function closeMobileSidebar() {
+  const sidebar = document.getElementById("appSidebar");
+  const backdrop = document.getElementById("sidebarBackdrop");
+  if (sidebar) {
+    sidebar.classList.add("-translate-x-full");
+    sidebar.classList.remove("translate-x-0");
+  }
+  if (backdrop) {
+    backdrop.classList.add("hidden");
+  }
+}
+
+function openMobileSidebar() {
+  const sidebar = document.getElementById("appSidebar");
+  const backdrop = document.getElementById("sidebarBackdrop");
+  if (sidebar) {
+    sidebar.classList.remove("-translate-x-full");
+    sidebar.classList.add("translate-x-0");
+  }
+  if (backdrop) {
+    backdrop.classList.remove("hidden");
+  }
+}
+
+function toggleMobileSidebar() {
+  const sidebar = document.getElementById("appSidebar");
+  if (!sidebar) return;
+  if (sidebar.classList.contains("-translate-x-full")) {
+    openMobileSidebar();
+  } else {
+    closeMobileSidebar();
+  }
+}
+
+function initMobileSidebar() {
+  const toggleBtn = document.getElementById("mobileSidebarToggleBtn");
+  const backdrop = document.getElementById("sidebarBackdrop");
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleMobileSidebar();
+    });
+  }
+  if (backdrop) {
+    backdrop.addEventListener("click", () => {
+      closeMobileSidebar();
+    });
+  }
+}
+
 function navigateToView(viewId) {
   AppState.ui.currentView = viewId;
+
+  // Auto-close sidebar on mobile navigation
+  closeMobileSidebar();
 
   const fixedNavButtons = document.querySelectorAll("#appSidebar > div:first-child .sidebar-nav-btn");
   const viewContents = document.querySelectorAll(".view-content");
@@ -1085,13 +1206,10 @@ function navigateToView(viewId) {
     renderTodayChecklist();
     renderUpcomingDeadlines();
     renderDashboardCalendar();
-    renderHomeBottomWidget(AppState.ui.homeBottomWidget);
+    renderHomeBottomWidget();
   } else if (viewId === "view-calendar") {
     renderSmartCalendar();
   }
-
-  // Close mobile drawer upon view switch
-  closeMobileSidebar();
 
   if (typeof lucide !== 'undefined' && lucide.createIcons) {
     lucide.createIcons();
@@ -1111,7 +1229,7 @@ function initFixedNavButtons() {
 }
 
 // ============================================================================
-// 12. STUDIES MASTER OVERVIEW & SCOPED SUB-MODULE ENGINE
+// 10. STUDIES MASTER OVERVIEW & SCOPED SUB-MODULE ENGINE
 // ============================================================================
 const scopedProjectTitle = document.getElementById("scopedProjectTitle");
 const scopedProjectDesc = document.getElementById("scopedProjectDesc");
@@ -1132,9 +1250,11 @@ const VIEW_METADATA = {
   todo: { label: "To-Do List", icon: "check-square" }
 };
 
+// Navigate to the combined Studies Master Overview (Root)
 function navigateToStudiesRoot(initialView = "calendar") {
+  AppState.ui.activeDomain = "studies";
   AppState.ui.activeSubPageId = "studies_root";
-
+  
   if (AppState.studies.rootViews.includes(initialView)) {
     AppState.ui.activeScopedLayout = initialView;
   } else {
@@ -1146,6 +1266,7 @@ function navigateToStudiesRoot(initialView = "calendar") {
 }
 
 function navigateToStudySubPage(subPageId, initialView = null) {
+  AppState.ui.activeDomain = "studies";
   AppState.ui.activeSubPageId = subPageId;
 
   const targetSub = AppState.studies.categories.find(s => s.id === subPageId) || AppState.studies.categories[0];
@@ -1195,19 +1316,22 @@ function renderScopedProjectView(subPageId) {
   }
 }
 
+// Render dynamic tabs with Hover Close Button (Tab Management)
 function renderProjectTabs(targetSub, isRoot) {
   if (!projectTabsList) return;
   projectTabsList.innerHTML = "";
 
   const activeViewsList = isRoot ? AppState.studies.rootViews : (targetSub?.activeViews || ["table"]);
 
+  // 1. Desktop Tab Bar
   activeViewsList.forEach(viewKey => {
     const meta = VIEW_METADATA[viewKey] || { label: viewKey, icon: "file-text" };
     const isActive = AppState.ui.activeScopedLayout === viewKey;
 
     const tabBtn = document.createElement("div");
     tabBtn.className = `project-tab-btn ${isActive ? 'active' : ''}`;
-
+    
+    // Tab Label & Icon
     const labelGroup = document.createElement("div");
     labelGroup.className = "flex items-center gap-1.5";
     labelGroup.innerHTML = `
@@ -1216,13 +1340,14 @@ function renderProjectTabs(targetSub, isRoot) {
     `;
     tabBtn.appendChild(labelGroup);
 
+    // Close button (only shown if more than 1 tab exists)
     if (activeViewsList.length > 1) {
       const closeBtn = document.createElement("button");
       closeBtn.type = "button";
       closeBtn.className = "tab-close-btn";
       closeBtn.title = `Remove ${meta.label} view`;
       closeBtn.innerHTML = `<i data-lucide="x" class="w-3 h-3"></i>`;
-
+      
       closeBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         if (isRoot) {
@@ -1253,6 +1378,32 @@ function renderProjectTabs(targetSub, isRoot) {
 
     projectTabsList.appendChild(tabBtn);
   });
+
+  // 2. Mobile Clean View Dropdown Selector
+  const mobileSelect = document.getElementById("mobileProjectViewSelect");
+  if (mobileSelect) {
+    mobileSelect.innerHTML = "";
+    activeViewsList.forEach(viewKey => {
+      const meta = VIEW_METADATA[viewKey] || { label: viewKey, icon: "file-text" };
+      const opt = document.createElement("option");
+      opt.value = viewKey;
+      opt.textContent = meta.label;
+      if (AppState.ui.activeScopedLayout === viewKey) {
+        opt.selected = true;
+      }
+      mobileSelect.appendChild(opt);
+    });
+
+    mobileSelect.onchange = () => {
+      AppState.ui.activeScopedLayout = mobileSelect.value;
+      renderProjectTabs(targetSub, isRoot);
+      renderScopedLayoutContent(targetSub, isRoot);
+    };
+  }
+
+  if (typeof lucide !== 'undefined' && lucide.createIcons) {
+    lucide.createIcons();
+  }
 }
 
 function getScopedStudyEvents(subPageId, isRoot) {
@@ -1308,7 +1459,7 @@ function renderScopedLayoutContent(targetSub, isRoot) {
 }
 
 // ============================================================================
-// 13. CUSTOMIZABLE DATA TABLE ENGINE WITH DRAG & DROP REORDERING (`view-table`)
+// 11. CUSTOMIZABLE DATA TABLE ENGINE (`view-table`)
 // ============================================================================
 
 function getActiveTableColumns(targetSub, isRoot) {
@@ -1325,16 +1476,6 @@ function getActiveTableColumns(targetSub, isRoot) {
   return targetSub.tableColumns;
 }
 
-function saveTableColumns(columns, targetSub, isRoot) {
-  if (isRoot) {
-    AppState.studies.rootTableColumns = columns;
-    saveDomain(STORAGE_KEYS.STUDIES_ROOT_COLUMNS, AppState.studies.rootTableColumns);
-  } else if (targetSub) {
-    targetSub.tableColumns = columns;
-    saveDomain(STORAGE_KEYS.STUDIES_CATEGORIES, AppState.studies.categories);
-  }
-}
-
 function renderScopedTable(events, targetSub, isRoot) {
   const theadRow = document.getElementById("scopedTableHeadRow");
   const tbody = document.getElementById("scopedTableBody");
@@ -1342,12 +1483,14 @@ function renderScopedTable(events, targetSub, isRoot) {
 
   const columns = getActiveTableColumns(targetSub, isRoot);
 
+  // 1. Render Dynamic Thead Columns with Drag & Drop Reordering
   theadRow.innerHTML = "";
+  let draggedColIndex = null;
 
   columns.forEach((col, colIdx) => {
     const th = document.createElement("th");
-    th.className = "table-th-header group";
-    th.setAttribute("draggable", "true");
+    th.className = "table-th-header";
+    th.draggable = true;
     th.dataset.colIndex = colIdx;
     if (col.width) th.style.width = col.width;
 
@@ -1355,20 +1498,23 @@ function renderScopedTable(events, targetSub, isRoot) {
       title: "file-text",
       status: "check-circle-2",
       priority: "flag",
-      drive: "hard-drive",
       date: "calendar",
       category: "tag",
       url: "link",
+      file: "folder-symlink",
+      drive: "folder-symlink",
       phone: "phone",
+      email: "mail",
+      percentage: "percent",
       checkbox: "check-square",
       text: "align-left"
     };
 
     th.innerHTML = `
-      <div class="table-header-content">
+      <div class="table-header-content ${col.type !== 'title' ? 'cursor-pointer select-none' : 'select-none'}" title="${col.type !== 'title' ? 'Drag to reorder or click to customize' : 'Drag to reorder'}">
         <div class="table-header-label">
-          <i data-lucide="${iconMap[col.type] || 'tag'}" class="w-3.5 h-3.5 opacity-70 shrink-0"></i>
-          <span class="truncate">${escapeHtml(col.name)}</span>
+          <i data-lucide="${iconMap[col.type] || 'tag'}" class="w-3.5 h-3.5 opacity-70"></i>
+          <span>${escapeHtml(col.name)}</span>
         </div>
         ${col.type !== 'title' ? `
           <button type="button" class="table-th-menu-trigger" title="Column options">
@@ -1378,21 +1524,19 @@ function renderScopedTable(events, targetSub, isRoot) {
       </div>
     `;
 
-    // --- HTML5 Drag & Drop Column Reordering ---
+    // HTML5 Drag & Drop Listeners
     th.addEventListener("dragstart", (e) => {
-      AppState.ui.draggedColumnIndex = colIdx;
+      draggedColIndex = colIdx;
       th.classList.add("col-dragging");
       e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", colIdx);
+      e.dataTransfer.setData("text/plain", String(colIdx));
     });
 
     th.addEventListener("dragover", (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
-
       const rect = th.getBoundingClientRect();
       const midpoint = rect.left + rect.width / 2;
-
       if (e.clientX < midpoint) {
         th.classList.add("col-drag-over-left");
         th.classList.remove("col-drag-over-right");
@@ -1406,45 +1550,50 @@ function renderScopedTable(events, targetSub, isRoot) {
       th.classList.remove("col-drag-over-left", "col-drag-over-right");
     });
 
+    th.addEventListener("dragend", () => {
+      th.classList.remove("col-dragging", "col-drag-over-left", "col-drag-over-right");
+      theadRow.querySelectorAll(".table-th-header").forEach(h => {
+        h.classList.remove("col-dragging", "col-drag-over-left", "col-drag-over-right");
+      });
+    });
+
     th.addEventListener("drop", (e) => {
       e.preventDefault();
-      th.classList.remove("col-drag-over-left", "col-drag-over-right");
+      th.classList.remove("col-dragging", "col-drag-over-left", "col-drag-over-right");
+      const fromIdx = draggedColIndex !== null ? draggedColIndex : parseInt(e.dataTransfer.getData("text/plain"));
+      const toIdx = colIdx;
 
-      const fromIndex = AppState.ui.draggedColumnIndex;
-      let toIndex = colIdx;
+      if (fromIdx !== null && !isNaN(fromIdx) && fromIdx !== toIdx) {
+        const movedCol = columns.splice(fromIdx, 1)[0];
+        columns.splice(toIdx, 0, movedCol);
 
-      const rect = th.getBoundingClientRect();
-      const midpoint = rect.left + rect.width / 2;
-      if (e.clientX >= midpoint && toIndex < columns.length - 1) {
-        toIndex++;
-      }
+        if (isRoot) {
+          AppState.studies.rootTableColumns = columns;
+          saveDomain(STORAGE_KEYS.STUDIES_ROOT_COLUMNS, AppState.studies.rootTableColumns);
+        } else if (targetSub) {
+          targetSub.tableColumns = columns;
+          saveDomain(STORAGE_KEYS.STUDIES_CATEGORIES, AppState.studies.categories);
+        }
 
-      if (fromIndex !== null && fromIndex !== toIndex) {
-        const movedCol = columns.splice(fromIndex, 1)[0];
-        columns.splice(toIndex, 0, movedCol);
-        saveTableColumns(columns, targetSub, isRoot);
-        renderScopedProjectView(isRoot ? "studies_root" : targetSub.id);
-        showToast(`Reordered column "${movedCol.name}"`, "info");
+        renderScopedProjectView(isRoot ? "studies_root" : targetSub?.id || "studies_root");
+        showToast("Column order updated", "info");
       }
     });
 
-    th.addEventListener("dragend", () => {
-      th.classList.remove("col-dragging");
-      document.querySelectorAll(".table-th-header").forEach(h => h.classList.remove("col-drag-over-left", "col-drag-over-right", "col-dragging"));
-      AppState.ui.draggedColumnIndex = null;
-    });
-
-    const menuTrigger = th.querySelector(".table-th-menu-trigger");
-    if (menuTrigger) {
-      menuTrigger.addEventListener("click", (e) => {
-        e.stopPropagation();
-        openColumnContextMenu(menuTrigger, col, colIdx, targetSub, isRoot);
-      });
+    if (col.type !== 'title') {
+      const headerContent = th.querySelector(".table-header-content");
+      if (headerContent) {
+        headerContent.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openColumnContextMenu(headerContent, col, colIdx, targetSub, isRoot);
+        });
+      }
     }
 
     theadRow.appendChild(th);
   });
 
+  // Rightmost Add Column Header Button (+)
   const addColTh = document.createElement("th");
   addColTh.className = "table-th-add-col";
   addColTh.innerHTML = `
@@ -1458,6 +1607,7 @@ function renderScopedTable(events, targetSub, isRoot) {
   });
   theadRow.appendChild(addColTh);
 
+  // 2. Render Tbody Rows with Dynamic Column Sync
   tbody.innerHTML = "";
 
   if (events.length === 0) {
@@ -1514,51 +1664,33 @@ function renderScopedTable(events, targetSub, isRoot) {
       } else if (col.type === "priority") {
         const prio = getPriorityInfo(evt.priority);
         td.innerHTML = `
-          <span class="notion-priority-badge ${prio.badgeClass}" title="Click to cycle priority">
+          <span class="notion-priority-badge ${prio.badgeClass}" title="Click to select priority (Shift+Click to cycle)">
             <i data-lucide="flag" class="w-3 h-3"></i>
             <span>${prio.key}</span>
           </span>
         `;
 
-        td.querySelector(".notion-priority-badge").addEventListener("click", (e) => {
+        const badge = td.querySelector(".notion-priority-badge");
+        badge.addEventListener("click", (e) => {
           e.stopPropagation();
-          cyclePriority(evt);
-        });
-      } else if (col.type === "drive") {
-        const prop = (evt.properties && evt.properties.find(p => p.type === "drive" || p.name.toLowerCase().includes("drive"))) || null;
-        const driveUrl = (prop && prop.value) || (evt.meta && (evt.meta.driveUrl || evt.meta.videoUrl)) || "";
-
-        if (driveUrl) {
-          td.innerHTML = `
-            <div class="flex items-center gap-1.5">
-              <a href="${driveUrl}" target="_blank" rel="noopener noreferrer" class="drive-link-badge truncate max-w-[150px]" title="Open in Google Drive">
-                <i data-lucide="hard-drive" class="w-3 h-3 shrink-0"></i>
-                <span class="truncate">Open Drive ↗</span>
-              </a>
-              <input type="text" value="${escapeHtml(driveUrl)}" class="table-cell-input text-[11px] text-[var(--text-muted)] truncate" />
-            </div>
-          `;
-        } else {
-          td.innerHTML = `
-            <input type="text" value="" placeholder="Paste Drive link..." class="table-cell-input text-[11px] text-blue-500" />
-          `;
-        }
-
-        const input = td.querySelector("input");
-        input.addEventListener("change", (e) => {
-          const val = e.target.value.trim();
-          if (!evt.properties) evt.properties = [];
-          let dProp = evt.properties.find(p => p.type === "drive");
-          if (!dProp) {
-            dProp = { id: "p_" + Date.now(), name: "Drive Resource", type: "drive", value: val };
-            evt.properties.push(dProp);
-          } else {
-            dProp.value = val;
+          if (e.shiftKey) {
+            cyclePriority(evt);
+            renderScopedProjectView(isRoot ? "studies_root" : targetSub?.id || "studies_root");
+            return;
           }
-          if (!evt.meta) evt.meta = {};
-          evt.meta.driveUrl = val;
-          saveStudyItem(evt, { showNotification: false });
-          renderScopedTable(events, targetSub, isRoot);
+          openPrioritySelectPopover(badge, (selectedPrio) => {
+            evt.priority = selectedPrio;
+            if (evt.properties) {
+              const pProp = evt.properties.find(p => p.type === "priority");
+              if (pProp) {
+                pProp.value = selectedPrio;
+                pProp.color = getPriorityInfo(selectedPrio).color;
+              }
+            }
+            saveStudyItem(evt, { showNotification: false });
+            renderScopedProjectView(isRoot ? "studies_root" : targetSub?.id || "studies_root");
+            showToast(`Priority: ${selectedPrio}`, "info");
+          });
         });
       } else if (col.type === "date") {
         const dateVal = evt.date || "";
@@ -1592,29 +1724,77 @@ function renderScopedTable(events, targetSub, isRoot) {
           evt.meta.videoUrl = e.target.value.trim();
           saveStudyItem(evt, { showNotification: false });
         });
-      } else if (col.type === "phone") {
-        const prop = (evt.properties && evt.properties.find(p => p.type === "phone")) || null;
-        const phoneVal = (prop && prop.value) || (evt.meta && evt.meta.phone) || "";
+      } else if (col.type === "file" || col.type === "drive") {
+        const driveUrl = (evt.meta && (evt.meta.driveUrl || evt.meta.fileUrl || evt.meta.videoUrl || evt.meta.link)) || (evt.properties && evt.properties.find(p => p.type === "file")?.value) || "";
+        const isDrive = driveUrl.includes("drive.google.com") || driveUrl.includes("docs.google.com");
 
+        if (driveUrl) {
+          td.innerHTML = `
+            <div class="flex items-center gap-1.5 group/cell">
+              <a href="${driveUrl}" target="_blank" rel="noopener noreferrer" class="drive-attachment-badge ${isDrive ? 'notion-tag-blue' : 'notion-tag-gray'}" title="${escapeHtml(driveUrl)}">
+                <i data-lucide="${isDrive ? 'folder-symlink' : 'paperclip'}" class="w-3 h-3"></i>
+                <span class="truncate max-w-[120px]">${isDrive ? 'Open in Drive ↗' : 'Attachment ↗'}</span>
+              </a>
+              <button type="button" class="edit-drive-btn p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] opacity-0 group-hover/cell:opacity-100 transition-opacity" title="Edit Link">
+                <i data-lucide="edit-2" class="w-2.5 h-2.5"></i>
+              </button>
+            </div>
+          `;
+
+          td.querySelector(".edit-drive-btn")?.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const newUrl = prompt("Enter Google Drive / File URL:", driveUrl);
+            if (newUrl !== null) {
+              if (!evt.meta) evt.meta = {};
+              evt.meta.driveUrl = newUrl.trim();
+              evt.meta.fileUrl = newUrl.trim();
+              if (evt.properties) {
+                const fProp = evt.properties.find(p => p.type === "file");
+                if (fProp) fProp.value = newUrl.trim();
+              }
+              saveStudyItem(evt, { showNotification: false });
+              renderScopedProjectView(isRoot ? "studies_root" : targetSub?.id || "studies_root");
+            }
+          });
+        } else {
+          td.innerHTML = `
+            <div class="flex items-center gap-1">
+              <i data-lucide="folder-symlink" class="w-3 h-3 text-[var(--text-muted)] shrink-0"></i>
+              <input type="url" placeholder="Paste Drive link..." class="table-cell-input text-[11px] text-[var(--text-secondary)]" />
+            </div>
+          `;
+
+          td.querySelector("input").addEventListener("change", (e) => {
+            const val = e.target.value.trim();
+            if (!evt.meta) evt.meta = {};
+            evt.meta.driveUrl = val;
+            evt.meta.fileUrl = val;
+            if (evt.properties) {
+              const fProp = evt.properties.find(p => p.type === "file");
+              if (fProp) fProp.value = val;
+            }
+            saveStudyItem(evt, { showNotification: false });
+            renderScopedProjectView(isRoot ? "studies_root" : targetSub?.id || "studies_root");
+          });
+        }
+      } else if (col.type === "phone") {
+        const phoneVal = (evt.meta && evt.meta.phone) || (evt.properties && evt.properties.find(p => p.type === "phone")?.value) || "";
         td.innerHTML = `
-          <div class="flex items-center gap-1.5">
-            <input type="tel" value="${escapeHtml(phoneVal)}" placeholder="+1..." class="table-cell-input text-[11px] font-mono text-indigo-500" />
-            ${phoneVal ? `<a href="tel:${phoneVal}" class="p-1 text-[var(--text-muted)] hover:text-indigo-400 shrink-0" title="Click to call"><i data-lucide="phone" class="w-3 h-3"></i></a>` : ''}
+          <div class="flex items-center gap-1.5 w-full">
+            <i data-lucide="phone" class="w-3 h-3 text-[var(--text-muted)] shrink-0"></i>
+            <input type="tel" value="${escapeHtml(phoneVal)}" placeholder="+1..." class="table-cell-input text-[11px] font-mono" />
+            ${phoneVal ? `<a href="tel:${phoneVal}" class="p-0.5 text-[var(--text-muted)] hover:text-indigo-400 shrink-0" title="Call ${phoneVal}"><i data-lucide="phone-call" class="w-3 h-3"></i></a>` : ''}
           </div>
         `;
 
         td.querySelector("input").addEventListener("change", (e) => {
           const val = e.target.value.trim();
-          if (!evt.properties) evt.properties = [];
-          let pProp = evt.properties.find(p => p.type === "phone");
-          if (!pProp) {
-            pProp = { id: "p_" + Date.now(), name: "Phone", type: "phone", value: val };
-            evt.properties.push(pProp);
-          } else {
-            pProp.value = val;
-          }
           if (!evt.meta) evt.meta = {};
           evt.meta.phone = val;
+          if (evt.properties) {
+            const pProp = evt.properties.find(p => p.type === "phone");
+            if (pProp) pProp.value = val;
+          }
           saveStudyItem(evt, { showNotification: false });
         });
       } else if (col.type === "checkbox") {
@@ -1642,6 +1822,7 @@ function renderScopedTable(events, targetSub, isRoot) {
       tr.appendChild(td);
     });
 
+    // Empty cell for the add-column column alignment
     const emptyTd = document.createElement("td");
     tr.appendChild(emptyTd);
 
@@ -1677,13 +1858,12 @@ if (tableFastNewRowForm) {
       includeTime: false,
       properties: [
         { id: "p1", name: "Status", type: "status", value: "Not Started", color: "gray" },
-        { id: "p2", name: "Priority", type: "priority", value: "Medium", color: "yellow" },
-        { id: "p3", name: "Drive Resource", type: "drive", value: "" }
+        { id: "p2", name: "Priority", type: "priority", value: "Medium", color: "yellow" }
       ],
       meta: {}
     };
 
-    saveStudyItem(newRecord, { showNotification: true, isNew: true });
+    saveStudyItem(newRecord, { showNotification: true });
     tableFastNewRowInput.value = "";
   });
 }
@@ -1694,13 +1874,8 @@ function openAddColumnPopover(anchorEl, targetSub, isRoot) {
   if (!addColumnPopover) return;
 
   const rect = anchorEl.getBoundingClientRect();
-  const popoverWidth = 240;
-  const popoverHeight = 280;
-  const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, rect.left - 160));
-  const top = Math.max(10, Math.min(window.innerHeight - popoverHeight - 10, rect.bottom + 4));
-
-  addColumnPopover.style.left = `${left}px`;
-  addColumnPopover.style.top = `${top}px`;
+  addColumnPopover.style.left = `${Math.min(window.innerWidth - 240, rect.left - 180)}px`;
+  addColumnPopover.style.top = `${Math.min(window.innerHeight - 260, rect.bottom + 4)}px`;
   addColumnPopover.classList.remove("hidden");
 
   AppState.ui.activeColumnContext = { targetSub, isRoot };
@@ -1718,36 +1893,43 @@ addColTypeButtons.forEach(btn => {
 
     const { targetSub, isRoot } = AppState.ui.activeColumnContext;
     const defaultNames = {
+      title: "Task / Title",
       status: "Status",
       priority: "Priority",
-      drive: "Drive Resource",
-      date: "Date",
-      url: "Link",
-      phone: "Phone",
-      checkbox: "Done",
-      category: "Module Tag",
-      text: "Note"
+      date: "Date / Span",
+      url: "URL / Media Link",
+      file: "Google Drive Link",
+      phone: "Phone Number",
+      checkbox: "Checkbox",
+      category: "Tags / Category",
+      text: "Text / Note"
     };
 
     const newCol = {
       id: "col_" + Date.now(),
-      key: colType,
+      key: colType === "title" ? "title" : (colType === "category" ? "categoryId" : colType),
       name: defaultNames[colType] || "Property",
       type: colType,
-      width: "15%"
+      width: colType === "title" ? "25%" : (colType === "date" ? "18%" : "14%")
     };
 
-    const columns = getActiveTableColumns(targetSub, isRoot);
-    columns.push(newCol);
-    saveTableColumns(columns, targetSub, isRoot);
+    if (isRoot) {
+      if (!AppState.studies.rootTableColumns) AppState.studies.rootTableColumns = [...DEFAULT_TABLE_COLUMNS];
+      AppState.studies.rootTableColumns.push(newCol);
+      saveDomain(STORAGE_KEYS.STUDIES_ROOT_COLUMNS, AppState.studies.rootTableColumns);
+    } else if (targetSub) {
+      if (!targetSub.tableColumns) targetSub.tableColumns = [...DEFAULT_TABLE_COLUMNS];
+      targetSub.tableColumns.push(newCol);
+      saveDomain(STORAGE_KEYS.STUDIES_CATEGORIES, AppState.studies.categories);
+    }
 
-    renderScopedProjectView(isRoot ? "studies_root" : targetSub.id);
+    renderScopedProjectView(isRoot ? "studies_root" : targetSub?.id || "studies_root");
     closeAddColumnPopover();
-    showToast(`Added column "${newCol.name}"`, "success");
+    showToast(`Added column "${newCol.name}"`, "info");
   });
 });
 
-// Column Context Menu (Move Left, Move Right, Rename & Delete)
+// Column Context Menu (Move, Rename & Delete)
 const columnContextMenu = document.getElementById("columnContextMenu");
 const ctxMoveColLeftBtn = document.getElementById("ctxMoveColLeftBtn");
 const ctxMoveColRightBtn = document.getElementById("ctxMoveColRightBtn");
@@ -1759,14 +1941,17 @@ function openColumnContextMenu(anchorEl, column, colIndex, targetSub, isRoot) {
 
   AppState.ui.activeColumnContext = { column, colIndex, targetSub, isRoot };
 
-  const rect = anchorEl.getBoundingClientRect();
-  const popoverWidth = 190;
-  const popoverHeight = 200;
-  const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, rect.left));
-  const top = Math.max(10, Math.min(window.innerHeight - popoverHeight - 10, rect.bottom + 4));
+  const columns = getActiveTableColumns(targetSub, isRoot);
+  if (ctxMoveColLeftBtn) {
+    ctxMoveColLeftBtn.style.display = colIndex > 0 ? "flex" : "none";
+  }
+  if (ctxMoveColRightBtn) {
+    ctxMoveColRightBtn.style.display = colIndex < columns.length - 1 ? "flex" : "none";
+  }
 
-  columnContextMenu.style.left = `${left}px`;
-  columnContextMenu.style.top = `${top}px`;
+  const rect = anchorEl.getBoundingClientRect();
+  columnContextMenu.style.left = `${Math.min(window.innerWidth - 190, rect.left)}px`;
+  columnContextMenu.style.top = `${Math.min(window.innerHeight - 180, rect.bottom + 4)}px`;
   columnContextMenu.classList.remove("hidden");
 }
 
@@ -1779,13 +1964,16 @@ if (ctxMoveColLeftBtn) {
     if (!AppState.ui.activeColumnContext) return;
     const { colIndex, targetSub, isRoot } = AppState.ui.activeColumnContext;
     const columns = getActiveTableColumns(targetSub, isRoot);
-
     if (colIndex > 0) {
       const moved = columns.splice(colIndex, 1)[0];
       columns.splice(colIndex - 1, 0, moved);
-      saveTableColumns(columns, targetSub, isRoot);
-      renderScopedProjectView(isRoot ? "studies_root" : targetSub.id);
-      showToast(`Moved "${moved.name}" left`, "info");
+      if (isRoot) {
+        saveDomain(STORAGE_KEYS.STUDIES_ROOT_COLUMNS, AppState.studies.rootTableColumns);
+      } else if (targetSub) {
+        saveDomain(STORAGE_KEYS.STUDIES_CATEGORIES, AppState.studies.categories);
+      }
+      renderScopedProjectView(isRoot ? "studies_root" : targetSub?.id || "studies_root");
+      showToast("Moved column left", "info");
     }
     closeColumnContextMenu();
   });
@@ -1796,13 +1984,16 @@ if (ctxMoveColRightBtn) {
     if (!AppState.ui.activeColumnContext) return;
     const { colIndex, targetSub, isRoot } = AppState.ui.activeColumnContext;
     const columns = getActiveTableColumns(targetSub, isRoot);
-
     if (colIndex < columns.length - 1) {
       const moved = columns.splice(colIndex, 1)[0];
       columns.splice(colIndex + 1, 0, moved);
-      saveTableColumns(columns, targetSub, isRoot);
-      renderScopedProjectView(isRoot ? "studies_root" : targetSub.id);
-      showToast(`Moved "${moved.name}" right`, "info");
+      if (isRoot) {
+        saveDomain(STORAGE_KEYS.STUDIES_ROOT_COLUMNS, AppState.studies.rootTableColumns);
+      } else if (targetSub) {
+        saveDomain(STORAGE_KEYS.STUDIES_CATEGORIES, AppState.studies.categories);
+      }
+      renderScopedProjectView(isRoot ? "studies_root" : targetSub?.id || "studies_root");
+      showToast("Moved column right", "info");
     }
     closeColumnContextMenu();
   });
@@ -1815,9 +2006,12 @@ if (ctxRenameColBtn) {
     const newName = prompt("Enter new column name:", column.name);
     if (newName && newName.trim()) {
       column.name = newName.trim();
-      const columns = getActiveTableColumns(targetSub, isRoot);
-      saveTableColumns(columns, targetSub, isRoot);
-      renderScopedProjectView(isRoot ? "studies_root" : targetSub.id);
+      if (isRoot) {
+        saveDomain(STORAGE_KEYS.STUDIES_ROOT_COLUMNS, AppState.studies.rootTableColumns);
+      } else if (targetSub) {
+        saveDomain(STORAGE_KEYS.STUDIES_CATEGORIES, AppState.studies.categories);
+      }
+      renderScopedProjectView(isRoot ? "studies_root" : targetSub?.id || "studies_root");
       showToast(`Renamed column to "${column.name}"`, "info");
     }
     closeColumnContextMenu();
@@ -1829,14 +2023,17 @@ if (ctxDeleteColBtn) {
     if (!AppState.ui.activeColumnContext) return;
     const { colIndex, column, targetSub, isRoot } = AppState.ui.activeColumnContext;
     confirmDeletion({
-      title: `Delete Column "${column.name}"?`,
-      desc: `Are you sure you want to remove the "${column.name}" column from this table?`,
+      desc: `Delete column "${column.name}" from table?`,
       onConfirm: () => {
-        const columns = getActiveTableColumns(targetSub, isRoot);
-        columns.splice(colIndex, 1);
-        saveTableColumns(columns, targetSub, isRoot);
-        renderScopedProjectView(isRoot ? "studies_root" : targetSub.id);
-        showToast(`Deleted column "${column.name}"`, "error");
+        if (isRoot) {
+          AppState.studies.rootTableColumns.splice(colIndex, 1);
+          saveDomain(STORAGE_KEYS.STUDIES_ROOT_COLUMNS, AppState.studies.rootTableColumns);
+        } else if (targetSub) {
+          targetSub.tableColumns.splice(colIndex, 1);
+          saveDomain(STORAGE_KEYS.STUDIES_CATEGORIES, AppState.studies.categories);
+        }
+        renderScopedProjectView(isRoot ? "studies_root" : targetSub?.id || "studies_root");
+        showToast(`Deleted column "${column.name}"`, "info");
       }
     });
     closeColumnContextMenu();
@@ -1849,13 +2046,8 @@ function openPrioritySelectPopover(anchorEl, callback) {
   if (!prioritySelectPopover) return;
 
   const rect = anchorEl.getBoundingClientRect();
-  const popoverWidth = 180;
-  const popoverHeight = 200;
-  const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, rect.left));
-  const top = Math.max(10, Math.min(window.innerHeight - popoverHeight - 10, rect.bottom + 4));
-
-  prioritySelectPopover.style.left = `${left}px`;
-  prioritySelectPopover.style.top = `${top}px`;
+  prioritySelectPopover.style.left = `${Math.min(window.innerWidth - 190, rect.left)}px`;
+  prioritySelectPopover.style.top = `${Math.min(window.innerHeight - 200, rect.bottom + 4)}px`;
   prioritySelectPopover.classList.remove("hidden");
 
   AppState.ui.activePriorityPropertyContext = { callback };
@@ -2131,13 +2323,11 @@ function renderScopedMedia(events, targetSub, isRoot) {
           { id: "p1", name: "Status", type: "status", value: "Not Started", color: "gray" },
           { id: "p2", name: "Priority", type: "priority", value: "Medium", color: "yellow" },
           { id: "p3", name: "Subject", type: "select", value: subjectName, color: "blue" },
-          { id: "p4", name: "Drive Resource", type: "drive", value: "" },
-          { id: "p5", name: "Video URL", type: "url", value: "" }
+          { id: "p4", name: "Video URL", type: "url", value: "" }
         ],
         meta: {
           subject: subjectName,
           videoUrl: "",
-          driveUrl: "",
           watched: false
         }
       };
@@ -2147,42 +2337,33 @@ function renderScopedMedia(events, targetSub, isRoot) {
     subjectGroup.appendChild(header);
 
     const cardsGrid = document.createElement("div");
-    cardsGrid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3";
+    cardsGrid.className = "grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3";
 
     videosInGroup.forEach(video => {
       const card = document.createElement("div");
       const isWatched = (video.meta && video.meta.watched) || video.status === 'done';
-      card.className = `media-card-item ${isWatched ? 'watched' : ''} cursor-pointer`;
+      card.className = `media-card-item ${isWatched ? 'watched' : ''} cursor-pointer p-2.5 sm:p-3`;
       const videoLink = (video.meta && video.meta.videoUrl) || "#";
-      const driveLink = (video.meta && video.meta.driveUrl) || "";
 
       card.innerHTML = `
-        <div class="space-y-1.5">
-          <div class="flex items-center justify-between gap-1">
-            <span class="px-2 py-0.5 rounded text-[10px] font-medium notion-tag-blue truncate">${escapeHtml(subjectName)}</span>
-            <span class="text-[10px] text-[var(--text-muted)] font-mono">${video.date || 'No Date'}</span>
+        <div class="space-y-1">
+          <div class="flex items-center justify-between gap-1 flex-wrap">
+            <span class="px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-medium notion-tag-blue truncate max-w-full">${escapeHtml(subjectName)}</span>
+            <span class="text-[9px] sm:text-[10px] text-[var(--text-muted)] font-mono">${video.date || 'No Date'}</span>
           </div>
-          <p class="media-title text-xs font-semibold text-[var(--text-primary)] leading-snug pt-0.5">${escapeHtml(video.title || 'Untitled Lecture')}</p>
-          ${video.notes ? `<p class="text-[11px] text-[var(--text-muted)] line-clamp-2">${escapeHtml(video.notes)}</p>` : ''}
+          <p class="media-title text-[11px] sm:text-xs font-semibold text-[var(--text-primary)] leading-tight pt-0.5 line-clamp-2">${escapeHtml(video.title || 'Untitled Lecture')}</p>
+          ${video.notes ? `<p class="text-[10px] sm:text-[11px] text-[var(--text-muted)] line-clamp-1 sm:line-clamp-2">${escapeHtml(video.notes)}</p>` : ''}
         </div>
 
-        <div class="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)] gap-2 flex-wrap">
-          <label class="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] cursor-pointer select-none">
+        <div class="flex items-center justify-between pt-1.5 sm:pt-2 border-t border-[var(--border-subtle)] gap-1">
+          <label class="flex items-center gap-1 text-[10px] sm:text-[11px] text-[var(--text-secondary)] cursor-pointer select-none">
             <input type="checkbox" ${isWatched ? 'checked' : ''} class="custom-checkbox scoped-mark-watched-chk" data-id="${video.id}" />
-            <span>Watched</span>
+            <span class="hidden sm:inline">Watched</span>
           </label>
-          <div class="flex items-center gap-1.5">
-            ${driveLink ? `
-              <a href="${driveLink}" target="_blank" rel="noopener noreferrer" class="drive-link-badge" onclick="event.stopPropagation()" title="Open Google Drive Files">
-                <i data-lucide="hard-drive" class="w-3 h-3"></i>
-                <span>Drive</span>
-              </a>
-            ` : ''}
-            <a href="${videoLink}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-md text-xs font-medium bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--border-subtle)] border border-[var(--border-subtle)] flex items-center gap-1" onclick="event.stopPropagation()">
-              <span>Watch</span>
-              <i data-lucide="external-link" class="w-3 h-3"></i>
-            </a>
-          </div>
+          <a href="${videoLink}" target="_blank" rel="noopener noreferrer" class="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--border-subtle)] border border-[var(--border-subtle)] flex items-center gap-1" onclick="event.stopPropagation()">
+            <span>Watch</span>
+            <i data-lucide="external-link" class="w-2.5 h-2.5 sm:w-3 sm:h-3"></i>
+          </a>
         </div>
       `;
 
@@ -2246,7 +2427,7 @@ function renderScopedTodo(events, targetSub, isRoot) {
 function createTodoItemRow(item) {
   const row = document.createElement("div");
   row.className = `todo-item-row ${item.completed ? 'completed' : ''} group cursor-pointer`;
-
+  
   const sub = AppState.studies.categories.find(s => s.id === item.categoryId);
   const tagLabel = sub ? sub.title : "Task";
   const colorKey = item.color || "gray";
@@ -2278,8 +2459,7 @@ function createTodoItemRow(item) {
   delBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     confirmDeletion({
-      title: "Delete Task?",
-      desc: `Are you sure you want to delete "${item.title}"?`,
+      desc: `Delete task "${item.title}"?`,
       onConfirm: () => {
         deleteStudyItem(item.id);
       }
@@ -2327,7 +2507,7 @@ if (scopedTodoAddForm) {
       meta: {}
     };
 
-    saveStudyItem(newTodo, { showNotification: true, isNew: true });
+    saveStudyItem(newTodo, { showNotification: true });
     scopedTodoInput.value = "";
   });
 }
@@ -2368,13 +2548,11 @@ if (addNewSubjectGroupBtn) {
       properties: [
         { id: "p1", name: "Status", type: "status", value: "Not Started", color: "gray" },
         { id: "p2", name: "Priority", type: "priority", value: "Medium", color: "yellow" },
-        { id: "p3", name: "Subject", type: "select", value: subjectName.trim(), color: "blue" },
-        { id: "p4", name: "Drive Resource", type: "drive", value: "" }
+        { id: "p3", name: "Subject", type: "select", value: subjectName.trim(), color: "blue" }
       ],
       meta: {
         subject: subjectName.trim(),
         videoUrl: "",
-        driveUrl: "",
         watched: false
       }
     };
@@ -2477,14 +2655,11 @@ document.addEventListener("click", (e) => {
   if (addColumnPopover && !addColumnPopover.contains(e.target) && !e.target.closest("#addTableColumnBtn")) {
     closeAddColumnPopover();
   }
-  if (columnContextMenu && !columnContextMenu.contains(e.target) && !e.target.closest(".table-th-menu-trigger")) {
+  if (columnContextMenu && !columnContextMenu.contains(e.target) && !e.target.closest(".table-th-menu-trigger") && !e.target.closest(".table-header-content")) {
     closeColumnContextMenu();
   }
   if (prioritySelectPopover && !prioritySelectPopover.contains(e.target) && !e.target.closest(".notion-priority-badge")) {
     closePrioritySelectPopover();
-  }
-  if (swapHomeWidgetMenu && !swapHomeWidgetMenu.contains(e.target) && !e.target.closest("#swapHomeWidgetBtn")) {
-    swapHomeWidgetMenu.classList.add("hidden");
   }
 });
 
@@ -2511,7 +2686,7 @@ addViewTypeOptions.forEach(opt => {
       }
       AppState.ui.activeScopedLayout = viewType;
       renderScopedProjectView(AppState.ui.activeSubPageId);
-      showToast(`Added ${VIEW_METADATA[viewType]?.label || viewType} view`, "success");
+      showToast(`Added ${VIEW_METADATA[viewType]?.label || viewType} view`, "info");
     }
     if (addViewMenuPopover) addViewMenuPopover.classList.add("hidden");
   });
@@ -2540,13 +2715,11 @@ if (scopedNewItemBtn) {
       includeTime: false,
       properties: [
         { id: "p1", name: "Status", type: "status", value: "Not Started", color: "gray" },
-        { id: "p2", name: "Priority", type: "priority", value: "Medium", color: "yellow" },
-        { id: "p3", name: "Drive Resource", type: "drive", value: "" }
+        { id: "p2", name: "Priority", type: "priority", value: "Medium", color: "yellow" }
       ],
       meta: {
         subject: isMediaHub ? "General Studies" : undefined,
         videoUrl: isMediaHub ? "" : undefined,
-        driveUrl: "",
         watched: false
       }
     };
@@ -2563,7 +2736,7 @@ if (scopedStatusFilter) {
 }
 
 // ============================================================================
-// 14. CALENDAR DAY INSPECTOR POPOVER MODAL (#calendarDayInspector)
+// 12. CALENDAR DAY INSPECTOR POPOVER MODAL (#calendarDayInspector)
 // ============================================================================
 const calendarDayInspector = document.getElementById("calendarDayInspector");
 const inspectorDateHeading = document.getElementById("inspectorDateHeading");
@@ -2579,6 +2752,7 @@ function openCalendarDayInspector(dateStr, scopedContextEvents = null) {
   const prettyDate = formatPrettyDate(AppState.ui.inspectorSelectedDateStr);
   if (inspectorDateHeading) inspectorDateHeading.textContent = prettyDate;
 
+  // Filter events scheduled on this specific date
   const eventsPool = scopedContextEvents || getAllWorkspaceEvents();
   const dayEvents = eventsPool.filter(e => {
     const eDate = normalizeDateStr(e.date);
@@ -2656,7 +2830,7 @@ if (calendarDayInspector) {
 }
 
 // ============================================================================
-// 15. UNIVERSAL QUICK ADD MODAL (Home Omnibar)
+// 13. UNIVERSAL CROSS-MODULE QUICK ADD MODAL CONTROLLER (Home Omnibar)
 // ============================================================================
 const universalAddModal = document.getElementById("universalAddModal");
 const universalNewItemBtn = document.getElementById("universalNewItemBtn");
@@ -2678,7 +2852,7 @@ function openUniversalAddModal(preselectedCatId = null) {
 
   if (universalDestSelect) {
     universalDestSelect.innerHTML = "";
-
+    
     const studyGroup = document.createElement("optgroup");
     studyGroup.label = "📚 Studies Workspace";
     AppState.studies.categories.forEach(sub => {
@@ -2770,23 +2944,21 @@ if (universalAddForm) {
       notes: notes,
       properties: [
         { id: "p1", name: "Status", type: "status", value: statusNames[status] || "Not Started", color: statusColors[status] || "gray" },
-        { id: "p2", name: "Priority", type: "priority", value: "Medium", color: "yellow" },
-        { id: "p3", name: "Drive Resource", type: "drive", value: "" }
+        { id: "p2", name: "Priority", type: "priority", value: "Medium", color: "yellow" }
       ],
       meta: {
         videoUrl: videoUrl,
-        driveUrl: "",
         watched: status === "done"
       }
     };
 
-    saveStudyItem(newEvent, { showNotification: true, isNew: true });
+    saveStudyItem(newEvent, { showNotification: true });
     closeUniversalAddModal();
   });
 }
 
 // ============================================================================
-// 16. ULTRA-CLEAN HOME DASHBOARD LOGIC (With Bottom Widget Zone)
+// 14. ULTRA-CLEAN HOME DASHBOARD LOGIC (Studies Focused)
 // ============================================================================
 const dashGreeting = document.getElementById("dashGreeting");
 const dashTodayDatePill = document.getElementById("dashTodayDatePill");
@@ -2809,19 +2981,8 @@ const dashCalPrevBtn = document.getElementById("dashCalPrevBtn");
 const dashCalNextBtn = document.getElementById("dashCalNextBtn");
 const dashCalTodayBtn = document.getElementById("dashCalTodayBtn");
 
-const swapHomeWidgetBtn = document.getElementById("swapHomeWidgetBtn");
-const swapHomeWidgetMenu = document.getElementById("swapHomeWidgetMenu");
-const homeWidgetIcon = document.getElementById("homeWidgetIcon");
-const homeWidgetTitle = document.getElementById("homeWidgetTitle");
-const homeWidgetDesc = document.getElementById("homeWidgetDesc");
-const homeWidgetBadge = document.getElementById("homeWidgetBadge");
-
-const widgetPanes = {
-  dayschools: document.getElementById("widgetPaneDaySchools"),
-  exam_sheet: document.getElementById("widgetPaneExamSheet"),
-  scratchpad: document.getElementById("widgetPaneScratchpad"),
-  sprints: document.getElementById("widgetPaneSprints")
-};
+const pendingLecturesCount = document.getElementById("pendingLecturesCount");
+const pendingLecturesContainer = document.getElementById("pendingLecturesContainer");
 
 function initDashboardHeader() {
   const now = new Date();
@@ -2857,7 +3018,7 @@ function initPomodoroTimer() {
       if (AppState.ui.pomo.running) {
         pomoToggleBtn.innerHTML = `<i data-lucide="pause" class="w-3.5 h-3.5"></i>`;
         if (pomoActiveDot) pomoActiveDot.classList.add("animate-pulse", "shadow-sm");
-
+        
         AppState.ui.pomo.interval = setInterval(() => {
           if (AppState.ui.pomo.remainingSeconds > 0) {
             AppState.ui.pomo.remainingSeconds--;
@@ -3052,7 +3213,7 @@ if (addTodayTaskForm) {
     saveDomain(STORAGE_KEYS.STUDIES_TODOS, AppState.studies.todos);
     todayTaskInput.value = "";
     renderTodayChecklist();
-    showToast("Task added to Studies Focus", "success");
+    showToast("Task added to Studies Focus", "info");
   });
 }
 
@@ -3089,7 +3250,7 @@ function renderUpcomingDeadlines() {
 
     const card = document.createElement("div");
     card.className = "p-2.5 rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-subtle)] hover:border-[var(--border-hover)] cursor-pointer transition-all flex items-center justify-between gap-2 group";
-
+    
     card.innerHTML = `
       <div class="truncate mr-2">
         <div class="flex items-center gap-1.5 mb-1">
@@ -3191,62 +3352,73 @@ if (dashCalTodayBtn) {
 }
 
 // ============================================================================
-// 17. HOME DASHBOARD BOTTOM WIDGET ZONE CONTROLLER
+// 14. CUSTOMIZABLE HOME DASHBOARD BOTTOM WIDGET ENGINE (`#homeBottomWidget`)
 // ============================================================================
+const swapHomeWidgetBtn = document.getElementById("swapHomeWidgetBtn");
+const swapHomeWidgetMenu = document.getElementById("swapHomeWidgetMenu");
+const homeWidgetTitle = document.getElementById("homeWidgetTitle");
+const homeWidgetBadge = document.getElementById("homeWidgetBadge");
+const homeWidgetIcon = document.getElementById("homeWidgetIcon");
+const homeWidgetBody = document.getElementById("homeWidgetBody");
 
-function initHomeBottomWidgets() {
-  if (swapHomeWidgetBtn) {
-    swapHomeWidgetBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (swapHomeWidgetMenu) swapHomeWidgetMenu.classList.toggle("hidden");
-    });
+const HOME_WIDGET_CONFIGS = {
+  dayschools: {
+    title: "Pending Day School Recordings",
+    icon: "video",
+    iconColor: "text-sky-500",
+    label: "Pending Day Schools"
+  },
+  examsheet: {
+    title: "Exam Study & Revision Sheet",
+    icon: "file-check-2",
+    iconColor: "text-rose-500",
+    label: "Exam & Revision Sheet"
+  },
+  scratchpad: {
+    title: "Study Scratchpad & Quick Notes",
+    icon: "edit-3",
+    iconColor: "text-amber-500",
+    label: "Study Scratchpad"
+  },
+  sprints: {
+    title: "Active Study Sprints & Milestones",
+    icon: "target",
+    iconColor: "text-emerald-500",
+    label: "Active Study Sprints"
   }
+};
 
-  const swapOptions = document.querySelectorAll(".swap-widget-opt");
-  swapOptions.forEach(opt => {
-    opt.addEventListener("click", () => {
-      const widgetKey = opt.getAttribute("data-widget");
-      if (widgetKey) {
-        AppState.ui.homeBottomWidget = widgetKey;
-        localStorage.setItem(STORAGE_KEYS.HOME_BOTTOM_WIDGET, widgetKey);
-        renderHomeBottomWidget(widgetKey);
-        showToast(`Switched widget view`, "info");
-      }
-      if (swapHomeWidgetMenu) swapHomeWidgetMenu.classList.add("hidden");
-    });
-  });
-
-  initHomeScratchpad();
+function getActiveHomeWidget() {
+  return localStorage.getItem("nexus_home_widget") || "dayschools";
 }
 
-function renderHomeBottomWidget(widgetKey = "dayschools") {
-  Object.values(widgetPanes).forEach(pane => {
-    if (pane) pane.classList.add("hidden");
-  });
+function setActiveHomeWidget(widgetKey) {
+  localStorage.setItem("nexus_home_widget", widgetKey);
+  renderHomeBottomWidget();
+  showToast(`Mounted "${HOME_WIDGET_CONFIGS[widgetKey]?.label || widgetKey}"`, "info");
+}
 
-  const activePane = widgetPanes[widgetKey] || widgetPanes.dayschools;
-  if (activePane) activePane.classList.remove("hidden");
+function renderHomeBottomWidget() {
+  if (!homeWidgetBody) return;
+  const activeWidget = getActiveHomeWidget();
+  const config = HOME_WIDGET_CONFIGS[activeWidget] || HOME_WIDGET_CONFIGS.dayschools;
 
-  if (widgetKey === "dayschools") {
-    if (homeWidgetIcon) homeWidgetIcon.setAttribute("data-lucide", "play-circle");
-    if (homeWidgetTitle) homeWidgetTitle.textContent = "Pending Day School Recordings";
-    if (homeWidgetDesc) homeWidgetDesc.textContent = "Unwatched lecture recordings and quick Drive resources";
-    renderPendingDaySchools();
-  } else if (widgetKey === "exam_sheet") {
-    if (homeWidgetIcon) homeWidgetIcon.setAttribute("data-lucide", "file-check");
-    if (homeWidgetTitle) homeWidgetTitle.textContent = "Exam Study & Revision Sheet";
-    if (homeWidgetDesc) homeWidgetDesc.textContent = "Interactive revision tracker with past paper checklists and confidence ratings";
-    renderExamRevisionSheet();
-  } else if (widgetKey === "scratchpad") {
-    if (homeWidgetIcon) homeWidgetIcon.setAttribute("data-lucide", "edit-3");
-    if (homeWidgetTitle) homeWidgetTitle.textContent = "Study Scratchpad";
-    if (homeWidgetDesc) homeWidgetDesc.textContent = "Freeform markdown notes, quick formulas, and study reminders";
-    if (homeWidgetBadge) homeWidgetBadge.textContent = "Notes";
-  } else if (widgetKey === "sprints") {
-    if (homeWidgetIcon) homeWidgetIcon.setAttribute("data-lucide", "timer");
-    if (homeWidgetTitle) homeWidgetTitle.textContent = "Active Study Sprints";
-    if (homeWidgetDesc) homeWidgetDesc.textContent = "Module completion metrics and milestone progress bars";
-    renderActiveStudySprints();
+  if (homeWidgetTitle) homeWidgetTitle.textContent = config.title;
+  if (homeWidgetIcon) {
+    homeWidgetIcon.setAttribute("data-lucide", config.icon);
+    homeWidgetIcon.className = `w-4 h-4 ${config.iconColor}`;
+  }
+
+  homeWidgetBody.innerHTML = "";
+
+  if (activeWidget === "dayschools") {
+    renderWidgetPendingDaySchools();
+  } else if (activeWidget === "examsheet") {
+    renderWidgetExamRevisionSheet();
+  } else if (activeWidget === "scratchpad") {
+    renderWidgetStudyScratchpad();
+  } else if (activeWidget === "sprints") {
+    renderWidgetActiveSprints();
   }
 
   if (typeof lucide !== 'undefined' && lucide.createIcons) {
@@ -3254,59 +3426,58 @@ function renderHomeBottomWidget(widgetKey = "dayschools") {
   }
 }
 
-function renderPendingDaySchools() {
-  const container = document.getElementById("pendingLecturesContainer");
-  if (!container) return;
-  container.innerHTML = "";
-
-  const daySchoolEvents = AppState.studies.items.filter(e => e.module === "dayschool" || (e.meta && (e.meta.videoUrl || e.meta.driveUrl)));
+// 1. Pending Day Schools Widget
+function renderWidgetPendingDaySchools() {
+  const daySchoolEvents = AppState.studies.items.filter(e => e.module === "dayschool" || (e.meta && e.meta.videoUrl));
   const pending = daySchoolEvents.filter(v => !(v.meta && v.meta.watched) && v.status !== "done");
 
   if (homeWidgetBadge) {
+    homeWidgetBadge.className = "text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded notion-tag-blue font-medium whitespace-nowrap shrink-0";
     homeWidgetBadge.textContent = `${pending.length} Unwatched`;
   }
 
   if (pending.length === 0) {
-    container.innerHTML = `
-      <div class="col-span-full py-6 text-center text-xs text-[var(--text-muted)]">
-        <i data-lucide="check-check" class="w-5 h-5 mx-auto mb-1.5 text-emerald-500"></i>
-        <span>All day school recordings have been watched and completed!</span>
+    homeWidgetBody.innerHTML = `
+      <div class="py-8 text-center text-xs text-[var(--text-muted)] space-y-1.5">
+        <i data-lucide="check-check" class="w-6 h-6 mx-auto text-emerald-500"></i>
+        <div class="font-medium text-[var(--text-secondary)]">All caught up!</div>
+        <div>All day school recordings have been watched and completed.</div>
       </div>
     `;
     return;
   }
 
+  const grid = document.createElement("div");
+  grid.className = "grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3";
+
   pending.forEach(video => {
     const card = document.createElement("div");
-    card.className = "p-3.5 rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-subtle)] hover:border-[var(--border-hover)] transition-all flex flex-col justify-between space-y-3";
-    const subjectName = (video.meta && video.meta.subject) || "Lecture";
+    card.className = "p-2.5 sm:p-3.5 rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-subtle)] hover:border-[var(--border-hover)] transition-all flex flex-col justify-between space-y-2 sm:space-y-3 shadow-xs";
+    const subjectName = (video.meta && video.meta.subject) || "Day School";
     const videoLink = (video.meta && video.meta.videoUrl) || "#";
-    const driveLink = (video.meta && video.meta.driveUrl) || "";
 
     card.innerHTML = `
       <div class="space-y-1">
-        <div class="flex items-center justify-between gap-1">
-          <span class="px-2 py-0.5 rounded text-[10px] font-medium notion-tag-blue truncate">${escapeHtml(subjectName)}</span>
-          <span class="text-[10px] text-[var(--text-muted)] font-mono">${video.date}</span>
+        <div class="flex items-center justify-between gap-1 flex-wrap">
+          <span class="px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-medium notion-tag-blue truncate max-w-full">${escapeHtml(subjectName)}</span>
+          <span class="text-[9px] sm:text-[10px] text-[var(--text-muted)] font-mono">${video.date}</span>
         </div>
-        <p class="text-xs font-semibold text-[var(--text-primary)] leading-snug pt-0.5">${escapeHtml(video.title)}</p>
+        <p class="text-[11px] sm:text-xs font-semibold text-[var(--text-primary)] leading-tight pt-0.5 line-clamp-2">${escapeHtml(video.title)}</p>
       </div>
 
-      <div class="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)] gap-2 flex-wrap">
-        <label class="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] cursor-pointer select-none">
+      <div class="flex items-center justify-between pt-1.5 sm:pt-2 border-t border-[var(--border-subtle)] gap-1">
+        <label class="flex items-center gap-1 text-[10px] sm:text-[11px] text-[var(--text-secondary)] cursor-pointer select-none">
           <input type="checkbox" class="custom-checkbox mark-watched-chk" data-id="${video.id}" />
-          <span>Mark Watched</span>
+          <span class="hidden sm:inline">Mark Watched</span>
+          <span class="sm:hidden">Watched</span>
         </label>
-        <div class="flex items-center gap-1.5">
-          ${driveLink ? `
-            <a href="${driveLink}" target="_blank" rel="noopener noreferrer" class="drive-link-badge" title="Open in Google Drive">
-              <i data-lucide="hard-drive" class="w-3 h-3"></i>
-              <span>Drive</span>
-            </a>
-          ` : ''}
-          <a href="${videoLink}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-md text-xs font-medium bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--border-subtle)] border border-[var(--border-subtle)] flex items-center gap-1">
+        <div class="flex items-center gap-1 shrink-0">
+          <button type="button" class="open-record-btn p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded hidden sm:block" title="Open record">
+            <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+          </button>
+          <a href="${videoLink}" target="_blank" rel="noopener noreferrer" class="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--border-subtle)] border border-[var(--border-subtle)] flex items-center gap-1">
             <span>Watch</span>
-            <i data-lucide="external-link" class="w-3 h-3"></i>
+            <i data-lucide="external-link" class="w-2.5 h-2.5 sm:w-3 sm:h-3"></i>
           </a>
         </div>
       </div>
@@ -3318,166 +3489,284 @@ function renderPendingDaySchools() {
         video.meta.watched = true;
         video.status = "done";
         video.completed = true;
-        saveStudyItem(video, { showNotification: true });
+        saveStudyItem(video, { showNotification: false });
+        showToast(`Marked "${video.title}" as watched!`, "success");
+        renderHomeBottomWidget();
+        renderTodayChecklist();
       }
     });
 
-    container.appendChild(card);
+    card.querySelector(".open-record-btn").addEventListener("click", () => openPageModal(video));
+
+    grid.appendChild(card);
   });
+
+  homeWidgetBody.appendChild(grid);
 }
 
-function renderExamRevisionSheet() {
-  const container = document.getElementById("examRevisionSheetContainer");
-  if (!container) return;
-  container.innerHTML = "";
+// 2. Exam Study & Revision Sheet Widget
+function renderWidgetExamRevisionSheet() {
+  const examItems = AppState.studies.items.filter(e => e.module === "exam" || e.categoryId === "sub_exams" || (e.title && e.title.toLowerCase().includes("exam")));
 
-  const examEvents = AppState.studies.items.filter(e => e.module === "exam" || e.categoryId === "sub_exams" || e.module === "viva");
+  const displayExams = examItems.length > 0 ? examItems : [
+    {
+      id: "sample_exam_1",
+      title: "CS302 Advanced Algorithms Final Exam",
+      date: "2026-09-15",
+      meta: {
+        confidence: "High",
+        papers: { "2022": true, "2023": true, "2024": false, "Mock": false }
+      }
+    },
+    {
+      id: "sample_exam_2",
+      title: "MA201 Linear Algebra & Discrete Math",
+      date: "2026-09-22",
+      meta: {
+        confidence: "Medium",
+        papers: { "2022": true, "2023": false, "2024": false, "Mock": false }
+      }
+    },
+    {
+      id: "sample_exam_3",
+      title: "SE405 Distributed Systems Architecture",
+      date: "2026-09-29",
+      meta: {
+        confidence: "Needs Focus",
+        papers: { "2022": false, "2023": false, "2024": false, "Mock": false }
+      }
+    }
+  ];
 
   if (homeWidgetBadge) {
-    homeWidgetBadge.textContent = `${examEvents.length} Exams`;
+    homeWidgetBadge.className = "text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded notion-tag-purple font-medium whitespace-nowrap shrink-0";
+    homeWidgetBadge.textContent = `${displayExams.length} Subjects Active`;
   }
 
-  if (examEvents.length === 0) {
-    container.innerHTML = `
-      <div class="col-span-full py-6 text-center text-xs text-[var(--text-muted)]">
-        <i data-lucide="file-text" class="w-5 h-5 mx-auto mb-1.5 text-rose-500"></i>
-        <span>No upcoming exams registered. Click "+ New Item" to add exam schedules.</span>
-      </div>
-    `;
-    return;
-  }
+  const grid = document.createElement("div");
+  grid.className = "grid grid-cols-1 md:grid-cols-3 gap-3.5";
 
-  examEvents.forEach(exam => {
-    const card = document.createElement("div");
-    card.className = "exam-revision-card space-y-2.5";
-
+  displayExams.forEach(exam => {
     if (!exam.meta) exam.meta = {};
-    if (!exam.meta.papers) exam.meta.papers = { "2023": false, "2024": false, "2025": false };
-    const confidence = exam.meta.confidence || "Medium";
+    if (!exam.meta.papers) exam.meta.papers = { "2022": true, "2023": false, "2024": false, "Mock": false };
+    const conf = exam.meta.confidence || "Medium";
 
-    const confColors = { High: "green", Medium: "yellow", Low: "red" };
+    const papersKeys = Object.keys(exam.meta.papers);
+    const completedCount = papersKeys.filter(k => exam.meta.papers[k]).length;
+    const totalCount = papersKeys.length;
+    const progressPct = Math.round((completedCount / totalCount) * 100);
+
+    const confClassMap = {
+      "High": "notion-tag-green",
+      "Medium": "notion-tag-yellow",
+      "Needs Focus": "notion-tag-red"
+    };
+
+    const card = document.createElement("div");
+    card.className = "p-4 rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-subtle)] hover:border-[var(--border-hover)] transition-all flex flex-col justify-between space-y-3 shadow-xs";
 
     card.innerHTML = `
-      <div class="space-y-1">
+      <div class="space-y-1.5">
         <div class="flex items-center justify-between gap-1">
-          <span class="px-2 py-0.5 rounded text-[10px] font-medium notion-tag-purple truncate">${escapeHtml(exam.title)}</span>
-          <span class="text-[10px] font-mono text-[var(--text-muted)]">${exam.date || 'Soon'}</span>
+          <span class="px-2 py-0.5 rounded text-[10px] font-medium ${confClassMap[conf] || 'notion-tag-yellow'} cursor-pointer select-none conf-toggle-btn" title="Click to cycle confidence rating">
+            ${escapeHtml(conf)}
+          </span>
+          <span class="text-[10px] text-[var(--text-muted)] font-mono">${exam.date || 'TBD'}</span>
         </div>
-        <p class="text-xs font-semibold text-[var(--text-primary)]">${escapeHtml((exam.meta && exam.meta.subject) || 'Examination')}</p>
+        <h4 class="text-xs font-semibold text-[var(--text-primary)] leading-snug">${escapeHtml(exam.title)}</h4>
       </div>
 
-      <!-- Past Paper Checklist -->
-      <div class="space-y-1 pt-1.5 border-t border-[var(--border-subtle)]">
-        <div class="text-[10px] uppercase font-bold text-[var(--text-muted)]">Past Paper Practice</div>
-        <div class="flex items-center gap-3">
-          <label class="flex items-center gap-1 text-[11px] text-[var(--text-secondary)] cursor-pointer select-none">
-            <input type="checkbox" ${exam.meta.papers["2023"] ? 'checked' : ''} class="custom-checkbox paper-chk" data-year="2023" />
-            <span>2023</span>
-          </label>
-          <label class="flex items-center gap-1 text-[11px] text-[var(--text-secondary)] cursor-pointer select-none">
-            <input type="checkbox" ${exam.meta.papers["2024"] ? 'checked' : ''} class="custom-checkbox paper-chk" data-year="2024" />
-            <span>2024</span>
-          </label>
-          <label class="flex items-center gap-1 text-[11px] text-[var(--text-secondary)] cursor-pointer select-none">
-            <input type="checkbox" ${exam.meta.papers["2025"] ? 'checked' : ''} class="custom-checkbox paper-chk" data-year="2025" />
-            <span>2025</span>
-          </label>
+      <!-- Past Papers Checklist Pills -->
+      <div class="space-y-1.5 pt-1">
+        <div class="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
+          <span>Past Papers & Mocks</span>
+          <span class="font-mono">${completedCount}/${totalCount} Done (${progressPct}%)</span>
         </div>
-      </div>
+        <div class="w-full bg-[var(--border-subtle)] rounded-full h-1.5 overflow-hidden">
+          <div class="bg-indigo-500 h-1.5 rounded-full transition-all duration-300" style="width: ${progressPct}%"></div>
+        </div>
 
-      <!-- Confidence Level Pill Switcher -->
-      <div class="flex items-center justify-between pt-1 border-t border-[var(--border-subtle)]">
-        <span class="text-[10px] uppercase font-bold text-[var(--text-muted)]">Confidence:</span>
-        <button type="button" class="px-2 py-0.5 rounded text-[10px] font-medium notion-tag-${confColors[confidence] || 'yellow'} conf-toggle-btn">
-          ${confidence}
-        </button>
+        <div class="flex items-center gap-1.5 flex-wrap pt-1">
+          ${papersKeys.map(paperYear => `
+            <button type="button" class="paper-toggle-btn px-2 py-0.5 rounded text-[10px] font-mono border transition-all ${exam.meta.papers[paperYear] ? 'bg-indigo-500/15 border-indigo-500/30 text-indigo-400 font-semibold' : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}" data-year="${paperYear}">
+              ${exam.meta.papers[paperYear] ? '✓' : '○'} ${paperYear}
+            </button>
+          `).join('')}
+        </div>
       </div>
     `;
 
-    card.querySelectorAll(".paper-chk").forEach(chk => {
-      chk.addEventListener("change", (e) => {
-        const year = chk.dataset.year;
-        exam.meta.papers[year] = e.target.checked;
+    // Confidence Toggle
+    card.querySelector(".conf-toggle-btn").addEventListener("click", () => {
+      const cycle = { "Needs Focus": "Medium", "Medium": "High", "High": "Needs Focus" };
+      exam.meta.confidence = cycle[conf] || "Medium";
+      if (!exam.id.startsWith("sample_")) {
         saveStudyItem(exam, { showNotification: false });
+      }
+      renderWidgetExamRevisionSheet();
+      showToast(`Confidence for "${exam.title}": ${exam.meta.confidence}`, "info");
+    });
+
+    // Past Papers Toggle
+    card.querySelectorAll(".paper-toggle-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const yr = btn.getAttribute("data-year");
+        exam.meta.papers[yr] = !exam.meta.papers[yr];
+        if (!exam.id.startsWith("sample_")) {
+          saveStudyItem(exam, { showNotification: false });
+        }
+        renderWidgetExamRevisionSheet();
       });
     });
 
-    const confBtn = card.querySelector(".conf-toggle-btn");
-    confBtn.addEventListener("click", () => {
-      const nextConf = confidence === "Low" ? "Medium" : (confidence === "Medium" ? "High" : "Low");
-      exam.meta.confidence = nextConf;
-      saveStudyItem(exam, { showNotification: false });
-      renderExamRevisionSheet();
-    });
-
-    container.appendChild(card);
+    grid.appendChild(card);
   });
+
+  homeWidgetBody.appendChild(grid);
 }
 
-function initHomeScratchpad() {
-  const textarea = document.getElementById("homeScratchpadTextarea");
-  const indicator = document.getElementById("scratchpadStatusIndicator");
-  if (!textarea) return;
+// 3. Study Scratchpad Widget
+function renderWidgetStudyScratchpad() {
+  const savedNotes = localStorage.getItem("nexus_study_scratchpad") || 
+`# Lecture Key Points & Formulas
+- CS302: Bellman-Ford complexity is O(V * E)
+- Matrix Inverse requires det(A) ≠ 0
+- Priority queue invariant must hold across all threads
 
-  const savedNotes = localStorage.getItem(STORAGE_KEYS.HOME_SCRATCHPAD) || "";
-  textarea.value = savedNotes;
+## Next Action Items
+1. Review Lecture 04 Day School recording
+2. Solve 2024 Past Paper Section B`;
 
-  let timeout = null;
-  textarea.addEventListener("input", () => {
-    if (indicator) {
-      indicator.textContent = "Saving...";
-      indicator.className = "font-mono text-[10px] text-amber-500";
-    }
-    clearTimeout(timeout);
-    timeout = setTimeout(() => {
-      localStorage.setItem(STORAGE_KEYS.HOME_SCRATCHPAD, textarea.value);
-      if (indicator) {
-        indicator.textContent = "Auto-saved";
-        indicator.className = "font-mono text-[10px] text-emerald-500";
-      }
-    }, 400);
-  });
-}
-
-function renderActiveStudySprints() {
-  const container = document.getElementById("activeSprintsContainer");
-  if (!container) return;
-  container.innerHTML = "";
-
-  const totalCategories = AppState.studies.categories;
   if (homeWidgetBadge) {
-    homeWidgetBadge.textContent = `${totalCategories.length} Modules`;
+    homeWidgetBadge.className = "text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded notion-tag-green font-medium whitespace-nowrap shrink-0";
+    homeWidgetBadge.textContent = "Autosaved";
   }
 
-  totalCategories.forEach(sub => {
-    const card = document.createElement("div");
-    card.className = "p-3.5 rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-subtle)] space-y-2";
-
-    const itemsInCat = AppState.studies.items.filter(i => i.categoryId === sub.id);
-    const doneCount = itemsInCat.filter(i => i.completed || i.status === "done").length;
-    const totalCount = itemsInCat.length;
-    const percent = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
-
-    card.innerHTML = `
-      <div class="flex items-center justify-between">
+  homeWidgetBody.innerHTML = `
+    <div class="space-y-2">
+      <div class="flex items-center justify-between text-xs text-[var(--text-muted)]">
         <div class="flex items-center gap-2">
-          <i data-lucide="${sub.icon || 'folder'}" class="w-4 h-4 text-indigo-500"></i>
-          <span class="text-xs font-semibold text-[var(--text-primary)]">${escapeHtml(sub.title)}</span>
+          <button type="button" id="scratchpadBulletBtn" class="px-2 py-0.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-subtle)] hover:text-[var(--text-primary)] text-[11px]">+ Bullet</button>
+          <button type="button" id="scratchpadTaskBtn" class="px-2 py-0.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-subtle)] hover:text-[var(--text-primary)] text-[11px]">+ Task Checkbox</button>
+          <button type="button" id="scratchpadClearBtn" class="px-2 py-0.5 rounded bg-[var(--bg-canvas)] border border-[var(--border-subtle)] hover:text-rose-400 text-[11px]">Clear</button>
         </div>
-        <span class="text-[11px] font-mono text-[var(--text-secondary)]">${doneCount}/${totalCount} (${percent}%)</span>
+        <span id="scratchpadStatus" class="text-[10px] font-mono text-[var(--text-muted)]">Synced locally</span>
       </div>
+      <textarea id="scratchpadTextarea" rows="6" placeholder="Type quick lecture notes, formulas, or markdown scratchpad..." class="w-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] focus:border-[var(--border-hover)] rounded-xl p-3.5 text-xs text-[var(--text-primary)] font-mono leading-relaxed outline-none resize-y">${escapeHtml(savedNotes)}</textarea>
+    </div>
+  `;
 
-      <div class="sprint-progress-bar">
-        <div class="sprint-progress-fill bg-indigo-500" style="width: ${percent}%"></div>
+  const textarea = homeWidgetBody.querySelector("#scratchpadTextarea");
+  const status = homeWidgetBody.querySelector("#scratchpadStatus");
+
+  let timeout = null;
+  textarea.addEventListener("input", (e) => {
+    status.textContent = "Saving...";
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      localStorage.setItem("nexus_study_scratchpad", e.target.value);
+      status.textContent = "Saved";
+      setTimeout(() => { status.textContent = "Synced locally"; }, 1500);
+    }, 400);
+  });
+
+  homeWidgetBody.querySelector("#scratchpadBulletBtn").addEventListener("click", () => {
+    textarea.value += "\n- ";
+    textarea.focus();
+  });
+  homeWidgetBody.querySelector("#scratchpadTaskBtn").addEventListener("click", () => {
+    textarea.value += "\n- [ ] ";
+    textarea.focus();
+  });
+  homeWidgetBody.querySelector("#scratchpadClearBtn").addEventListener("click", () => {
+    confirmDeletion({
+      title: "Clear Scratchpad?",
+      desc: "This will wipe all content in your current scratchpad. Are you sure?",
+      onConfirm: () => {
+        textarea.value = "";
+        localStorage.setItem("nexus_study_scratchpad", "");
+        showToast("Scratchpad cleared", "info");
+      }
+    });
+  });
+}
+
+// 4. Active Study Sprints Widget
+function renderWidgetActiveSprints() {
+  const sprintModules = AppState.studies.categories.map((cat, idx) => {
+    const items = AppState.studies.items.filter(i => i.categoryId === cat.id);
+    const completed = items.filter(i => i.completed || i.status === "done").length;
+    const total = items.length || 1;
+    const pct = items.length > 0 ? Math.round((completed / items.length) * 100) : (idx % 2 === 0 ? 60 : 35);
+    return {
+      id: cat.id,
+      title: cat.title,
+      icon: cat.icon || "folder",
+      totalItems: items.length,
+      completedItems: completed,
+      pct: pct
+    };
+  });
+
+  if (homeWidgetBadge) {
+    homeWidgetBadge.className = "text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded notion-tag-yellow font-medium whitespace-nowrap shrink-0";
+    homeWidgetBadge.textContent = `${sprintModules.length} Modules Tracking`;
+  }
+
+  const grid = document.createElement("div");
+  grid.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3";
+
+  sprintModules.forEach(mod => {
+    const card = document.createElement("div");
+    card.className = "p-3.5 rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-subtle)] hover:border-[var(--border-hover)] transition-all flex flex-col justify-between space-y-3 shadow-xs cursor-pointer";
+    card.innerHTML = `
+      <div class="space-y-1">
+        <div class="flex items-center justify-between">
+          <i data-lucide="${mod.icon}" class="w-4 h-4 text-indigo-400"></i>
+          <span class="text-[10px] font-mono font-semibold text-[var(--text-secondary)]">${mod.pct}%</span>
+        </div>
+        <h4 class="text-xs font-semibold text-[var(--text-primary)] truncate pt-0.5">${escapeHtml(mod.title)}</h4>
+        <div class="text-[10px] text-[var(--text-muted)]">${mod.completedItems}/${mod.totalItems} tasks completed</div>
+      </div>
+      <div class="w-full bg-[var(--border-subtle)] rounded-full h-1.5 overflow-hidden">
+        <div class="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style="width: ${mod.pct}%"></div>
       </div>
     `;
 
-    container.appendChild(card);
+    card.addEventListener("click", () => navigateToStudySubPage(mod.id));
+    grid.appendChild(card);
+  });
+
+  homeWidgetBody.appendChild(grid);
+}
+
+// Swap Widget Event Listeners
+if (swapHomeWidgetBtn && swapHomeWidgetMenu) {
+  swapHomeWidgetBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    swapHomeWidgetMenu.classList.toggle("hidden");
   });
 }
 
+document.addEventListener("click", (e) => {
+  if (swapHomeWidgetMenu && !swapHomeWidgetMenu.contains(e.target) && e.target !== swapHomeWidgetBtn) {
+    swapHomeWidgetMenu.classList.add("hidden");
+  }
+});
+
+const swapWidgetOptions = document.querySelectorAll(".swap-widget-opt");
+swapWidgetOptions.forEach(opt => {
+  opt.addEventListener("click", () => {
+    const widgetKey = opt.getAttribute("data-widget");
+    if (widgetKey) {
+      setActiveHomeWidget(widgetKey);
+    }
+    if (swapHomeWidgetMenu) swapHomeWidgetMenu.classList.add("hidden");
+  });
+});
+
 // ============================================================================
-// 18. GLOBAL MASTER WORKSPACE CALENDAR VIEW
+// 15. GLOBAL MASTER WORKSPACE CALENDAR VIEW
 // ============================================================================
 const calMonthYearHeading = document.getElementById("calMonthYearHeading");
 const smartCalendarGrid = document.getElementById("smartCalendarGrid");
@@ -3546,6 +3835,7 @@ function renderSmartCalendar() {
   }
 }
 
+// Interactive Calendar Day Cell (Opens Day Inspector on click!)
 function createCalendarCell(dayNumber, dateStr, isOtherMonth, isToday, events, contextEventsPool) {
   const cell = document.createElement("div");
   cell.className = `cal-day-cell group ${isOtherMonth ? 'other-month' : ''} ${isToday ? 'current-day' : ''}`;
@@ -3577,10 +3867,10 @@ function createCalendarCell(dayNumber, dateStr, isOtherMonth, isToday, events, c
   events.forEach(evt => {
     const pill = document.createElement("div");
     const colorKey = evt.color || (evt.module === 'dayschool' ? 'blue' : evt.module === 'viva' ? 'purple' : evt.module === 'assignment' ? 'orange' : evt.module === 'exam' ? 'red' : 'green');
-
+    
     const isSpan = evt.isRange && evt.endDate && evt.endDate !== evt.date;
     pill.className = `event-pill ${isSpan ? 'span-pill' : ''} notion-tag-${colorKey}`;
-
+    
     const timeStr = evt.includeTime && evt.startTime ? `${evt.startTime} ` : '';
     pill.textContent = `${timeStr}${evt.title || 'Untitled'}`;
     pill.title = `${evt.title || 'Untitled'}`;
@@ -3595,6 +3885,7 @@ function createCalendarCell(dayNumber, dateStr, isOtherMonth, isToday, events, c
 
   cell.appendChild(eventsContainer);
 
+  // Clicking the day cell opens the Day Inspector Popover Modal!
   cell.addEventListener("click", (e) => {
     if (!e.target.closest(".event-pill") && !e.target.closest(".cal-add-event-btn")) {
       openCalendarDayInspector(dateStr, contextEventsPool);
@@ -3626,7 +3917,7 @@ if (calTodayBtn) {
 }
 
 // ============================================================================
-// 19. NOTION PAGE MODAL (Studies Domain Scoped with Drive & Phone Properties)
+// 16. NOTION PAGE MODAL (Studies Domain Scoped with Priority Property)
 // ============================================================================
 const pageModal = document.getElementById("pageModal");
 const pageModalCard = document.getElementById("pageModalCard");
@@ -3708,8 +3999,7 @@ function openPageModal(eventOrDate) {
       notes: "",
       properties: [
         { id: "prop_1", name: "Status", type: "status", value: "Not Started", color: "gray" },
-        { id: "prop_2", name: "Priority", type: "priority", value: "Medium", color: "yellow" },
-        { id: "prop_3", name: "Drive Resource", type: "drive", value: "" }
+        { id: "prop_2", name: "Priority", type: "priority", value: "Medium", color: "yellow" }
       ],
       meta: {}
     };
@@ -3734,7 +4024,7 @@ function openPageModal(eventOrDate) {
 
   pageTitleInput.value = p.title || "";
   setModalColorSwatches(p.color || "purple");
-
+  
   const sub = AppState.studies.categories.find(s => s.id === p.categoryId);
   const badgeLabel = sub ? sub.title : (p.module || "Study Item");
   updatePageModalBadge(badgeLabel, p.color || "purple");
@@ -3772,9 +4062,9 @@ function setModalColorSwatches(selectedColor) {
   const swatches = pageColorPicker.querySelectorAll("button[data-color]");
   swatches.forEach(swatch => {
     if (swatch.getAttribute("data-color") === selectedColor) {
-      swatch.classList.add("active-swatch");
+      swatch.classList.add("ring-2", "ring-offset-1", "ring-offset-[var(--bg-surface)]", "ring-[var(--text-primary)]");
     } else {
-      swatch.classList.remove("active-swatch");
+      swatch.classList.remove("ring-2", "ring-offset-1", "ring-offset-[var(--bg-surface)]", "ring-[var(--text-primary)]");
     }
   });
 }
@@ -3862,8 +4152,7 @@ if (deletePageItemBtn) {
     const targetTitle = AppState.ui.activePageItem.title || "this study entry";
 
     confirmDeletion({
-      title: "Delete Record?",
-      desc: `Are you sure you want to delete "${targetTitle}"? This action cannot be undone.`,
+      desc: `Are you sure you want to delete "${targetTitle}"?`,
       onConfirm: () => {
         deleteStudyItem(targetId);
         pageModal.classList.add("hidden");
@@ -3886,17 +4175,17 @@ if (expandPageModalBtn) {
   });
 }
 
+// Dynamic Property Rendering inside Page Modal
 const PROP_TYPE_META = {
   select: { label: "Select Tag", icon: "chevron-down-circle" },
   status: { label: "Status", icon: "check-circle-2" },
   priority: { label: "Priority", icon: "flag" },
-  drive: { label: "Google Drive / Link", icon: "hard-drive" },
   percentage: { label: "Number / Percentage", icon: "percent" },
   url: { label: "URL / Link", icon: "link" },
-  file: { label: "Files & Media", icon: "paperclip" },
-  phone: { label: "Phone Number", icon: "phone" },
+  file: { label: "Google Drive / File", icon: "folder-symlink" },
   checkbox: { label: "Checkbox", icon: "check-square" },
-  email: { label: "Email", icon: "mail" }
+  email: { label: "Email", icon: "mail" },
+  phone: { label: "Phone", icon: "phone" }
 };
 
 function renderDynamicProperties() {
@@ -3915,7 +4204,7 @@ function renderDynamicProperties() {
       const tagColor = prop.color || "gray";
       const tagText = prop.value || "Empty";
       valueMarkup = `
-        <div class="select-prop-trigger notion-tag-${tagColor} px-2 py-0.5 rounded text-[11.5px] font-medium cursor-pointer flex items-center gap-1.5" data-prop-idx="${index}">
+        <div class="select-prop-trigger notion-tag-${tagColor} px-2 py-0.5 rounded text-[11px] font-medium cursor-pointer flex items-center gap-1.5" data-prop-idx="${index}">
           <span>${escapeHtml(tagText)}</span>
           <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
         </div>
@@ -3937,44 +4226,37 @@ function renderDynamicProperties() {
           <span>${prio.key}</span>
         </button>
       `;
-    } else if (prop.type === "drive") {
-      const driveVal = prop.value || "";
-      valueMarkup = `
-        <div class="flex items-center gap-1.5 w-full">
-          <input type="url" placeholder="Paste Google Drive / Resource Link..." value="${escapeHtml(driveVal)}" class="notion-ghost-input text-blue-600 dark:text-blue-400" data-prop-idx="${index}" />
-          ${driveVal ? `
-            <a href="${driveVal}" target="_blank" rel="noopener noreferrer" class="drive-link-badge shrink-0" title="Open in Google Drive">
-              <i data-lucide="hard-drive" class="w-3 h-3"></i>
-              <span>Open ↗</span>
-            </a>
-          ` : ''}
-        </div>
-      `;
     } else if (prop.type === "percentage") {
       const numVal = parseInt(prop.value) || 0;
       valueMarkup = `
         <div class="flex items-center gap-3 w-full">
-          <input type="number" min="0" max="100" value="${numVal}" class="notion-ghost-input w-16 text-center" data-prop-idx="${index}" />
+          <input type="number" min="0" max="100" value="${numVal}" class="notion-property-input font-mono w-16" data-prop-idx="${index}" />
           <div class="w-24 bg-[var(--border-subtle)] rounded-full h-1.5 overflow-hidden">
             <div class="bg-emerald-500 h-1.5 rounded-full" style="width: ${Math.min(100, numVal)}%"></div>
           </div>
-          <span class="text-[11px] text-[var(--text-muted)]">%</span>
+          <span class="text-[11px] text-[var(--text-muted)] font-mono">%</span>
         </div>
       `;
     } else if (prop.type === "url") {
       const urlVal = prop.value || "";
       valueMarkup = `
         <div class="flex items-center gap-1.5 w-full">
-          <input type="url" placeholder="https://..." value="${escapeHtml(urlVal)}" class="notion-ghost-input text-sky-600 dark:text-sky-400" data-prop-idx="${index}" />
+          <input type="url" placeholder="https://..." value="${escapeHtml(urlVal)}" class="notion-property-input" data-prop-idx="${index}" />
           ${urlVal ? `<a href="${urlVal}" target="_blank" rel="noopener noreferrer" class="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"><i data-lucide="external-link" class="w-3.5 h-3.5"></i></a>` : ''}
         </div>
       `;
-    } else if (prop.type === "file") {
+    } else if (prop.type === "file" || prop.type === "drive") {
       const fileVal = prop.value || "";
+      const isDrive = fileVal.includes("drive.google.com") || fileVal.includes("docs.google.com");
       valueMarkup = `
         <div class="flex items-center gap-1.5 w-full">
-          <input type="url" placeholder="Drive / File URL..." value="${escapeHtml(fileVal)}" class="notion-ghost-input" data-prop-idx="${index}" />
-          ${fileVal ? `<a href="${fileVal}" target="_blank" rel="noopener noreferrer" class="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"><i data-lucide="external-link" class="w-3.5 h-3.5"></i></a>` : ''}
+          <input type="url" placeholder="Paste Google Drive / Resource Link..." value="${escapeHtml(fileVal)}" class="notion-property-input" data-prop-idx="${index}" />
+          ${fileVal ? `
+            <a href="${fileVal}" target="_blank" rel="noopener noreferrer" class="drive-attachment-badge ${isDrive ? 'notion-tag-blue' : 'notion-tag-gray'} shrink-0" title="Open Link">
+              <i data-lucide="${isDrive ? 'folder-symlink' : 'paperclip'}" class="w-3 h-3"></i>
+              <span>${isDrive ? 'Open in Drive ↗' : 'Open Link ↗'}</span>
+            </a>
+          ` : ''}
         </div>
       `;
     } else if (prop.type === "checkbox") {
@@ -3985,7 +4267,7 @@ function renderDynamicProperties() {
       const emailVal = prop.value || "";
       valueMarkup = `
         <div class="flex items-center gap-1.5 w-full">
-          <input type="email" placeholder="name@domain.com" value="${escapeHtml(emailVal)}" class="notion-ghost-input" data-prop-idx="${index}" />
+          <input type="email" placeholder="name@domain.com" value="${escapeHtml(emailVal)}" class="notion-property-input" data-prop-idx="${index}" />
           ${emailVal ? `<a href="mailto:${emailVal}" class="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"><i data-lucide="send" class="w-3.5 h-3.5"></i></a>` : ''}
         </div>
       `;
@@ -3993,8 +4275,8 @@ function renderDynamicProperties() {
       const phoneVal = prop.value || "";
       valueMarkup = `
         <div class="flex items-center gap-1.5 w-full">
-          <input type="tel" placeholder="+1 (555) 000-0000" value="${escapeHtml(phoneVal)}" class="notion-ghost-input text-indigo-600 dark:text-indigo-400" data-prop-idx="${index}" />
-          ${phoneVal ? `<a href="tel:${phoneVal}" class="p-1 text-[var(--text-muted)] hover:text-indigo-400" title="Click to call"><i data-lucide="phone" class="w-3.5 h-3.5"></i></a>` : ''}
+          <input type="tel" placeholder="+1..." value="${escapeHtml(phoneVal)}" class="notion-property-input font-mono" data-prop-idx="${index}" />
+          ${phoneVal ? `<a href="tel:${phoneVal}" class="p-1 text-[var(--text-muted)] hover:text-indigo-400 shrink-0" title="Call ${phoneVal}"><i data-lucide="phone-call" class="w-3.5 h-3.5"></i></a>` : ''}
         </div>
       `;
     }
@@ -4051,7 +4333,7 @@ function renderDynamicProperties() {
       });
     }
 
-    const inputEl = row.querySelector(".notion-ghost-input, input[type='checkbox']");
+    const inputEl = row.querySelector(".notion-property-input, input[type='checkbox']");
     if (inputEl) {
       if (inputEl.type === "checkbox") {
         inputEl.addEventListener("change", (e) => {
@@ -4061,12 +4343,6 @@ function renderDynamicProperties() {
       } else {
         inputEl.addEventListener("input", (e) => {
           prop.value = e.target.value;
-          if (prop.type === "drive" && AppState.ui.activePageItem.meta) {
-            AppState.ui.activePageItem.meta.driveUrl = e.target.value;
-          }
-          if (prop.type === "phone" && AppState.ui.activePageItem.meta) {
-            AppState.ui.activePageItem.meta.phone = e.target.value;
-          }
           commitActivePageItem();
         });
       }
@@ -4096,13 +4372,8 @@ function openStatusDropdownPopover(triggerEl, propIndex) {
   if (!statusDropdownPopover) return;
 
   const rect = triggerEl.getBoundingClientRect();
-  const popoverWidth = 260;
-  const popoverHeight = 300;
-  const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, rect.left));
-  const top = Math.max(10, Math.min(window.innerHeight - popoverHeight - 10, rect.bottom + 4));
-
-  statusDropdownPopover.style.left = `${left}px`;
-  statusDropdownPopover.style.top = `${top}px`;
+  statusDropdownPopover.style.left = `${Math.min(window.innerWidth - 270, rect.left)}px`;
+  statusDropdownPopover.style.top = `${Math.min(window.innerHeight - 300, rect.bottom + 4)}px`;
   statusDropdownPopover.classList.remove("hidden");
 
   statusSearchInput.value = "";
@@ -4127,7 +4398,7 @@ function renderStatusOptionsList(filterQuery = "") {
   matched.forEach(opt => {
     const row = document.createElement("div");
     row.className = "notion-popover-row group";
-
+    
     row.innerHTML = `
       <div class="flex items-center gap-2 truncate">
         <span class="px-2 py-0.5 rounded text-[11px] font-medium notion-tag-${opt.color || 'gray'} truncate">${escapeHtml(opt.name)}</span>
@@ -4166,7 +4437,7 @@ function renderStatusOptionsList(filterQuery = "") {
     const createRow = document.createElement("div");
     createRow.className = "notion-popover-row text-xs text-[var(--text-secondary)] flex items-center gap-1.5";
     createRow.innerHTML = `<span>+ Create</span> <span class="px-2 py-0.5 rounded text-[10px] notion-tag-gray font-medium">${escapeHtml(filterQuery)}</span>`;
-
+    
     createRow.addEventListener("click", () => {
       const newStatus = {
         id: "st_" + Date.now(),
@@ -4186,9 +4457,9 @@ function renderStatusOptionsList(filterQuery = "") {
           renderDynamicProperties();
         }
       }
-
+      
       openStatusColorSubmenu(createRow, newStatus);
-      showToast(`Created status "${newStatus.name}"`, "success");
+      showToast(`Created status "${newStatus.name}"`, "info");
     });
     statusOptionsContainer.appendChild(createRow);
   }
@@ -4209,13 +4480,8 @@ function openStatusColorSubmenu(btnEl, option) {
   if (!statusColorSubmenu) return;
 
   const rect = btnEl.getBoundingClientRect();
-  const popoverWidth = 190;
-  const popoverHeight = 280;
-  const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, rect.right + 4));
-  const top = Math.max(10, Math.min(window.innerHeight - popoverHeight - 10, rect.top));
-
-  statusColorSubmenu.style.left = `${left}px`;
-  statusColorSubmenu.style.top = `${top}px`;
+  statusColorSubmenu.style.left = `${Math.min(window.innerWidth - 200, rect.right + 4)}px`;
+  statusColorSubmenu.style.top = `${Math.min(window.innerHeight - 280, rect.top)}px`;
   statusColorSubmenu.classList.remove("hidden");
 
   renderStatusColorOptions();
@@ -4267,14 +4533,13 @@ if (deleteStatusOptionBtn) {
     if (!AppState.ui.activeStatusEditOption) return;
     const optToDelete = AppState.ui.activeStatusEditOption;
     confirmDeletion({
-      title: `Delete Status "${optToDelete.name}"?`,
       desc: `Delete status "${optToDelete.name}" from status options?`,
       onConfirm: () => {
         AppState.statusOptionsCache = AppState.statusOptionsCache.filter(o => o.id !== optToDelete.id);
         saveDomain(STORAGE_KEYS.STATUS_OPTIONS, AppState.statusOptionsCache);
         renderStatusOptionsList(statusSearchInput ? statusSearchInput.value : "");
         statusColorSubmenu.classList.add("hidden");
-        showToast("Status option deleted", "error");
+        showToast("Status option deleted", "info");
       }
     });
   });
@@ -4358,14 +4623,13 @@ if (deletePropertyFromPopoverBtn) {
     const prop = AppState.ui.activePageItem.properties[propIdx];
     if (prop) {
       confirmDeletion({
-        title: `Remove Property "${prop.name}"?`,
         desc: `Remove the property "${prop.name}" from this page?`,
         onConfirm: () => {
           AppState.ui.activePageItem.properties.splice(propIdx, 1);
           commitActivePageItem();
           renderDynamicProperties();
           closePropertyEditPopover();
-          showToast("Property removed", "error");
+          showToast("Property removed", "info");
         }
       });
     }
@@ -4409,13 +4673,12 @@ addPropTypeButtons.forEach(btn => {
       select: "Tags",
       status: "Status",
       priority: "Priority",
-      drive: "Google Drive / Link",
       percentage: "Progress",
       url: "Link",
       file: "Attachment",
-      phone: "Phone Number",
       checkbox: "Checkbox",
-      email: "Contact Email"
+      email: "Contact Email",
+      phone: "Phone Number"
     };
 
     const newProp = {
@@ -4448,13 +4711,8 @@ function openTagSelectPopover(triggerEl, propIndex) {
   if (!tagSelectPopover) return;
 
   const rect = triggerEl.getBoundingClientRect();
-  const popoverWidth = 260;
-  const popoverHeight = 300;
-  const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, rect.left));
-  const top = Math.max(10, Math.min(window.innerHeight - popoverHeight - 10, rect.bottom + 4));
-
-  tagSelectPopover.style.left = `${left}px`;
-  tagSelectPopover.style.top = `${top}px`;
+  tagSelectPopover.style.left = `${Math.min(window.innerWidth - 270, rect.left)}px`;
+  tagSelectPopover.style.top = `${Math.min(window.innerHeight - 300, rect.bottom + 4)}px`;
   tagSelectPopover.classList.remove("hidden");
 
   tagSearchInput.value = "";
@@ -4479,7 +4737,7 @@ function renderTagOptionsList(filterQuery = "") {
   matched.forEach(opt => {
     const row = document.createElement("div");
     row.className = "notion-popover-row group";
-
+    
     row.innerHTML = `
       <div class="flex items-center gap-2 truncate">
         <span class="px-2 py-0.5 rounded text-[11px] font-medium notion-tag-${opt.color || 'gray'} truncate">${escapeHtml(opt.name)}</span>
@@ -4515,7 +4773,7 @@ function renderTagOptionsList(filterQuery = "") {
     const createRow = document.createElement("div");
     createRow.className = "notion-popover-row text-xs text-[var(--text-secondary)] flex items-center gap-1.5";
     createRow.innerHTML = `<span>+ Create</span> <span class="px-1.5 py-0.5 rounded text-[10px] notion-tag-gray font-medium">${escapeHtml(filterQuery)}</span>`;
-
+    
     createRow.addEventListener("click", () => {
       const newOpt = {
         id: "opt_" + Date.now(),
@@ -4555,13 +4813,8 @@ function openTagColorSubmenu(btnEl, option) {
   if (!tagColorSubmenu) return;
 
   const rect = btnEl.getBoundingClientRect();
-  const popoverWidth = 190;
-  const popoverHeight = 280;
-  const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, rect.right + 4));
-  const top = Math.max(10, Math.min(window.innerHeight - popoverHeight - 10, rect.top));
-
-  tagColorSubmenu.style.left = `${left}px`;
-  tagColorSubmenu.style.top = `${top}px`;
+  tagColorSubmenu.style.left = `${Math.min(window.innerWidth - 200, rect.right + 4)}px`;
+  tagColorSubmenu.style.top = `${Math.min(window.innerHeight - 280, rect.top)}px`;
   tagColorSubmenu.classList.remove("hidden");
 
   renderTagColorOptions();
@@ -4612,14 +4865,13 @@ if (deleteTagOptionBtn) {
     if (!AppState.ui.activeTagEditOption) return;
     const optToDelete = AppState.ui.activeTagEditOption;
     confirmDeletion({
-      title: `Delete Tag "${optToDelete.name}"?`,
       desc: `Delete tag "${optToDelete.name}" from options?`,
       onConfirm: () => {
         AppState.selectOptionsCache = AppState.selectOptionsCache.filter(o => o.id !== optToDelete.id);
         saveDomain(STORAGE_KEYS.SELECT_OPTIONS, AppState.selectOptionsCache);
         renderTagOptionsList(tagSearchInput ? tagSearchInput.value : "");
         tagColorSubmenu.classList.add("hidden");
-        showToast("Tag option deleted", "error");
+        showToast("Tag option deleted", "info");
       }
     });
   });
@@ -4629,13 +4881,8 @@ function openPropertyContextMenu(x, y, propId, propIndex) {
   AppState.ui.activePropertyContextMenu = { propId, propIndex };
   if (!propertyContextMenu) return;
 
-  const popoverWidth = 180;
-  const popoverHeight = 150;
-  const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, x + 5));
-  const top = Math.max(10, Math.min(window.innerHeight - popoverHeight - 10, y + 5));
-
-  propertyContextMenu.style.left = `${left}px`;
-  propertyContextMenu.style.top = `${top}px`;
+  propertyContextMenu.style.left = `${Math.min(window.innerWidth - 200, x + 5)}px`;
+  propertyContextMenu.style.top = `${Math.min(window.innerHeight - 150, y + 5)}px`;
   propertyContextMenu.classList.remove("hidden");
 }
 
@@ -4658,7 +4905,7 @@ if (ctxDuplicatePropBtn) {
       AppState.ui.activePageItem.properties.splice(propIndex + 1, 0, duplicated);
       commitActivePageItem();
       renderDynamicProperties();
-      showToast("Property duplicated", "success");
+      showToast("Property duplicated", "info");
     }
     closePropertyContextMenu();
   });
@@ -4685,13 +4932,12 @@ if (ctxDeletePropBtn) {
     const targetProp = AppState.ui.activePageItem.properties[propIndex];
     if (targetProp) {
       confirmDeletion({
-        title: `Remove Property "${targetProp.name}"?`,
         desc: `Remove the property "${targetProp.name}" from this page?`,
         onConfirm: () => {
           AppState.ui.activePageItem.properties.splice(propIndex, 1);
           commitActivePageItem();
           renderDynamicProperties();
-          showToast("Property removed", "error");
+          showToast("Property removed", "info");
         }
       });
     }
@@ -4699,71 +4945,42 @@ if (ctxDeletePropBtn) {
   });
 }
 
-// Mobile Sidebar Navigation & Responsive Drawer Control
-function openMobileSidebar() {
-  const sidebar = document.getElementById("appSidebar");
-  const backdrop = document.getElementById("sidebarBackdrop");
-  if (sidebar) sidebar.classList.add("sidebar-open");
-  if (backdrop) backdrop.classList.remove("hidden");
-}
-
-function closeMobileSidebar() {
-  const sidebar = document.getElementById("appSidebar");
-  const backdrop = document.getElementById("sidebarBackdrop");
-  if (sidebar) sidebar.classList.remove("sidebar-open");
-  if (backdrop) backdrop.classList.add("hidden");
-}
-
-function toggleSidebar() {
-  if (window.innerWidth < 768) {
-    const sidebar = document.getElementById("appSidebar");
-    if (sidebar && sidebar.classList.contains("sidebar-open")) {
-      closeMobileSidebar();
-    } else {
-      openMobileSidebar();
-    }
-  } else {
-    const sidebar = document.getElementById("appSidebar");
-    if (sidebar) {
-      sidebar.classList.toggle("sidebar-collapsed");
-    }
-  }
-}
-
-function initSidebarResponsive() {
-  const sidebarToggleBtn = document.getElementById("sidebarToggleBtn");
-  const mobileSidebarCloseBtn = document.getElementById("mobileSidebarCloseBtn");
-  const sidebarBackdrop = document.getElementById("sidebarBackdrop");
-
-  if (sidebarToggleBtn) {
-    sidebarToggleBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      toggleSidebar();
-    });
-  }
-
-  if (mobileSidebarCloseBtn) {
-    mobileSidebarCloseBtn.addEventListener("click", () => {
-      closeMobileSidebar();
-    });
-  }
-
-  if (sidebarBackdrop) {
-    sidebarBackdrop.addEventListener("click", () => {
-      closeMobileSidebar();
-    });
-  }
-
-  window.addEventListener("resize", () => {
-    if (window.innerWidth >= 768) {
-      closeMobileSidebar();
-    }
-  });
-}
 
 // ============================================================================
-// 20. APPLICATION BOOTSTRAP
+// 18. TOAST NOTIFICATIONS & UTILITIES
 // ============================================================================
+function showToast(message, type = "info") {
+  const container = document.getElementById("toastContainer");
+  if (!container) return;
+  const toast = document.createElement("div");
+  
+  const iconMap = {
+    success: `<i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400 shrink-0"></i>`,
+    error: `<i data-lucide="alert-circle" class="w-3.5 h-3.5 text-rose-400 shrink-0"></i>`,
+    warning: `<i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-400 shrink-0"></i>`,
+    info: `<i data-lucide="info" class="w-3.5 h-3.5 text-sky-400 shrink-0"></i>`
+  };
+
+  const iconMarkup = iconMap[type] || iconMap.info;
+
+  toast.className = `toast-card toast-slide-in`;
+  toast.innerHTML = `
+    ${iconMarkup}
+    <span class="truncate">${escapeHtml(message)}</span>
+  `;
+
+  container.appendChild(toast);
+  if (typeof lucide !== 'undefined' && lucide.createIcons) {
+    lucide.createIcons();
+  }
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(6px) scale(0.96)';
+    setTimeout(() => toast.remove(), 250);
+  }, 3000);
+}
+
 function capitalize(str) {
   if (!str) return '';
   return str.charAt(0).toUpperCase() + str.slice(1);
@@ -4779,25 +4996,26 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
+// ============================================================================
+// 19. APPLICATION BOOTSTRAP
+// ============================================================================
 window.addEventListener("DOMContentLoaded", () => {
   initThemeEngine();
   loadStateFromStorage();
   initRealTimeClock();
   initFixedNavButtons();
+  initMobileSidebar();
   initPomodoroTimer();
   renderHierarchicalSidebar();
-  initHomeBottomWidgets();
-  initSidebarResponsive();
 
-  // Connect Firebase Firestore Sync
-  initFirebaseSync();
+  initFirebase();
 
   navigateToView("view-today");
 
   const signOutBtn = document.getElementById("signOutBtn");
   if (signOutBtn) {
     signOutBtn.addEventListener("click", () => {
-      showToast("Signed out successfully", "info");
+      showToast("Signed out", "info");
     });
   }
 });
