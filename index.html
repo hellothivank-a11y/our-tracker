@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nexus — Studies Workspace & Master Calendar System</title>
+  
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- SortableJS for Drag-and-Drop -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+  <!-- Firebase v10 Compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <!-- Custom Design System Stylesheet -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="bg-[var(--bg-canvas)] text-[var(--text-primary)] min-h-screen flex flex-col antialiased selection:bg-purple-500 selection:text-white">
+
+  <!-- Top App Bar / Universal Sticky Header -->
+  <header class="sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6 h-12 bg-[var(--header-bg)] backdrop-blur-md border-b border-[var(--border-subtle)] transition-colors">
+    <div class="flex items-center gap-3">
+      <button id="sidebarToggleBtn" class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] transition-colors" title="Toggle Sidebar">
+        <i data-lucide="menu" class="w-4 h-4"></i>
+      </button>
+      
+      <div class="flex items-center gap-2">
+        <div class="w-6 h-6 rounded-md bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white shadow-sm">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+        </div>
+        <span class="font-semibold text-xs tracking-tight text-[var(--text-primary)] hidden sm:inline">Nexus Studies</span>
+        <span class="text-[var(--border-hover)] hidden sm:inline">/</span>
+        <span id="currentViewHeading" class="text-xs text-[var(--text-secondary)] font-medium">Today's Focus</span>
+      </div>
+    </div>
+
+    <!-- Right Header Controls: Cloud Sync Status, Universal Add, Theme & Live Clock -->
+    <div class="flex items-center gap-2.5 sm:gap-3">
+      
+      <!-- Cloud Sync Status Pill -->
+      <div id="cloudSyncPill" class="cloud-sync-pill" title="Firebase Firestore Cloud Sync">
+        <span id="cloudSyncDot" class="cloud-sync-dot"></span>
+        <span id="cloudSyncLabel" class="hidden sm:inline">Cloud Synced</span>
+      </div>
+
+      <!-- Universal Quick Add Omnibar Trigger Button -->
+      <button type="button" id="universalNewItemBtn" class="bg-zinc-900 text-white hover:bg-black dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 px-2.5 py-1 sm:px-3 sm:py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02]">
+        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+        <span class="hidden sm:inline">New Item</span>
+      </button>
+
+      <!-- Theme Switcher -->
+      <div class="flex items-center p-0.5 bg-[var(--bg-surface-subtle)] border border-[var(--border-subtle)] rounded-lg">
+        <button class="theme-btn p-1 rounded-md text-xs transition-all" data-theme="light" title="Light mode">
+          <i data-lucide="sun" class="w-3.5 h-3.5"></i>
+        </button>
+        <button class="theme-btn p-1 rounded-md text-xs transition-all" data-theme="dark" title="Dark mode">
+          <i data-lucide="moon" class="w-3.5 h-3.5"></i>
+        </button>
+        <button class="theme-btn p-1 rounded-md text-xs transition-all" data-theme="system" title="System mode">
+          <i data-lucide="laptop" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+
+      <!-- Live Clock Pill -->
+      <div class="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[11px] font-mono text-[var(--text-secondary)] shadow-sm">
+        <i data-lucide="clock" class="w-3 h-3 text-[var(--text-muted)]"></i>
+        <span id="liveClockDisplay">00:00:00</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Body Split: Hierarchical Studies Sidebar & Dynamic View Stage -->
+  <div class="flex flex-1 overflow-hidden">
+
+    <!-- ===================================================================== -->
+    <!-- SIDEBAR: STRICTLY STUDIES DOMAIN & CORE HUB ONLY                       -->
+    <!-- ===================================================================== -->
+    <aside id="appSidebar" class="w-64 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] flex flex-col justify-between shrink-0 transition-all duration-200 ease-in-out select-none">
+      
+      <!-- Top Section: Core Hub & Dynamic Studies Categories -->
+      <div class="p-3 space-y-4 overflow-y-auto flex-1">
+        
+        <!-- Primary Hub Links -->
+        <div class="space-y-0.5">
+          <button type="button" class="sidebar-nav-btn w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium active" data-view="view-today" id="navBtnToday">
+            <i data-lucide="layout-grid" class="sidebar-icon"></i>
+            <span>Today's Focus</span>
+          </button>
+          
+          <button type="button" class="sidebar-nav-btn w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium" data-view="view-calendar" id="navBtnMasterCalendar">
+            <i data-lucide="calendar" class="sidebar-icon"></i>
+            <span>Master Calendar</span>
+          </button>
+        </div>
+
+        <!-- Section Separator -->
+        <div class="pt-2 border-t border-[var(--border-subtle)]">
+          <div class="flex items-center justify-between px-2 pb-1.5">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Academic Workspace</span>
+            <button id="addCustomCategoryBtn" class="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-0.5 rounded transition-colors" title="Create Page / Category">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+
+          <!-- Dynamic Studies Category Tree Container (Reorderable via SortableJS) -->
+          <div id="sidebarCategoriesContainer" class="space-y-1">
+            <!-- Studies accordion and scoped modules rendered via JavaScript -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Bottom User Profile Area -->
+      <div class="p-3 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs text-[var(--text-secondary)]">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
+            T
+          </div>
+          <div class="truncate leading-tight">
+            <p class="font-semibold text-[var(--text-primary)] truncate">Scholar Workspace</p>
+            <p class="text-[10px] text-[var(--text-muted)] font-mono truncate" id="liveDateDisplay">August 17, 2026</p>
+          </div>
+        </div>
+        <button id="signOutBtn" class="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)]" title="Settings / Info">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- ===================================================================== -->
+    <!-- MAIN CONTENT VIEW STAGE                                               -->
+    <!-- ===================================================================== -->
+    <main id="contentStage" class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6">
+
+      <!-- ===================================================================== -->
+      <!-- VIEW 1: HOME DASHBOARD (`view-today`)                                 -->
+      <!-- ===================================================================== -->
+      <section id="view-today" class="view-content space-y-6 animate-fade-in">
+        
+        <!-- 1. Top Header Area (Compact & Inspiring) -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border-subtle)]">
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 id="dashGreeting" class="text-xl font-bold tracking-tight text-[var(--text-primary)]">Good morning, Scholar</h1>
+              <span id="dashTodayDatePill" class="text-xs font-mono px-2 py-0.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">Aug 17</span>
+            </div>
+            <p id="dashQuote" class="text-xs text-[var(--text-muted)] mt-0.5 italic">"Deep work is the superpower of the 21st century."</p>
+          </div>
+
+          <!-- Built-in Focus / Pomodoro Timer Pill -->
+          <div class="flex items-center gap-2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-full px-3 py-1 shadow-sm shrink-0 self-start sm:self-auto">
+            <span id="pomoActiveDot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span id="pomoTimerDisplay" class="text-xs font-mono font-semibold tracking-wider text-[var(--text-primary)]">25:00</span>
+            <div class="flex items-center gap-1 pl-1 border-l border-[var(--border-subtle)]">
+              <button id="pomoToggleBtn" class="p-1 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] transition-colors" title="Start / Pause">
+                <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+              </button>
+              <button id="pomoResetBtn" class="p-1 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] transition-colors" title="Reset">
+                <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Main Workspace Split Grid (2-Column Architecture) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          <!-- Left Stage: Urgent & Quick Actions (~35% Width: 4 Cols) -->
+          <div class="lg:col-span-4 space-y-6">
+            
+            <!-- A. Today's Focus (Auto-Aggregated Daily Checklist) -->
+            <div class="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 space-y-4 shadow-sm">
+              <div class="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500"></i>
+                  <h3 class="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">Today's Focus</h3>
+                </div>
+                <span id="todayTasksCount" class="text-[11px] font-mono px-2 py-0.5 rounded notion-tag-gray font-medium">0/0 Done</span>
+              </div>
+
+              <!-- Auto-Aggregated Checklist Container -->
+              <div id="todayTasksList" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+
+              <!-- Fast Inline Quick-Task Input -->
+              <form id="addTodayTaskForm" class="pt-2 border-t border-[var(--border-subtle)] flex items-center gap-2">
+                <i data-lucide="plus" class="w-3.5 h-3.5 text-[var(--text-muted)]"></i>
+                <input type="text" id="todayTaskInput" placeholder="Add study task..." class="w-full bg-transparent text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none" />
+                <button type="submit" class="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] px-2 py-0.5 rounded hover:bg-[var(--row-hover)] font-medium">Add</button>
+              </form>
+            </div>
+
+            <!-- B. Upcoming Deadlines (Next 72 Hours Horizon) -->
+            <div class="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 space-y-4 shadow-sm">
+              <div class="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="flame" class="w-4 h-4 text-rose-500"></i>
+                  <h3 class="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">Upcoming Deadlines (72H)</h3>
+                </div>
+                <span class="text-[10px] font-mono text-[var(--text-muted)] uppercase">High Urgency</span>
+              </div>
+
+              <div id="upcomingDeadlinesList" class="space-y-2.5"></div>
+            </div>
+
+            <!-- C. Studies Hub Quick Shortlinks -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <div class="hub-shortlink-btn" onclick="navigateToStudySubPage('sub_dayschool', 'media')">
+                <i data-lucide="video" class="w-3.5 h-3.5 text-sky-500"></i>
+                <span>Day Schools</span>
+              </div>
+              <div class="hub-shortlink-btn" onclick="navigateToStudySubPage('sub_viva', 'calendar')">
+                <i data-lucide="calendar" class="w-3.5 h-3.5 text-purple-500"></i>
+                <span>Viva Defense</span>
+              </div>
+              <div class="hub-shortlink-btn" onclick="navigateToStudySubPage('sub_exams', 'calendar')">
+                <i data-lucide="file-text" class="w-3.5 h-3.5 text-rose-500"></i>
+                <span>Exams</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Right Stage: Dashboard Monthly Calendar Overview (~65% Width: 8 Cols) -->
+          <div class="lg:col-span-8 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 space-y-3.5 shadow-sm">
+            
+            <div class="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
+              <div class="flex items-center gap-2">
+                <i data-lucide="calendar" class="w-4 h-4 text-[var(--text-secondary)]"></i>
+                <h3 id="dashCalMonthHeading" class="text-sm font-semibold text-[var(--text-primary)] tracking-tight">August 2026</h3>
+              </div>
+              <div class="flex items-center gap-1">
+                <button id="dashCalPrevBtn" class="p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-canvas)] border border-[var(--border-subtle)]">
+                  <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                </button>
+                <button id="dashCalTodayBtn" class="text-xs px-2 py-0.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] font-medium">
+                  Today
+                </button>
+                <button id="dashCalNextBtn" class="p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-canvas)] border border-[var(--border-subtle)]">
+                  <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-7 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] pb-1">
+              <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+            </div>
+
+            <div id="dashboardCalendarGrid"></div>
+          </div>
+
+        </div>
+
+        <!-- 3. Dynamic Bottom Section: Customizable Home Dashboard Bottom Widget Zone -->
+        <div id="homeBottomWidgetZone" class="bottom-widget-zone space-y-4 shadow-sm">
+          
+          <!-- Widget Zone Header with Switch View Dropdown -->
+          <div class="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)] gap-2 flex-wrap">
+            <div class="flex items-center gap-2">
+              <i id="homeWidgetIcon" data-lucide="play-circle" class="w-4 h-4 text-sky-500"></i>
+              <div>
+                <h3 id="homeWidgetTitle" class="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">Pending Day School Recordings</h3>
+                <p id="homeWidgetDesc" class="text-[11px] text-[var(--text-muted)]">Unwatched lecture recordings and quick Drive resources</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span id="homeWidgetBadge" class="text-[11px] font-mono px-2 py-0.5 rounded notion-tag-blue font-medium">0 Unwatched</span>
+              
+              <!-- Swap Widget Dropdown Trigger -->
+              <div class="relative">
+                <button type="button" id="swapHomeWidgetBtn" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] transition-all">
+                  <i data-lucide="arrow-left-right" class="w-3.5 h-3.5"></i>
+                  <span>Switch View</span>
+                </button>
+
+                <!-- Floating Widget Swap Menu -->
+                <div id="swapHomeWidgetMenu" class="hidden absolute right-0 top-8 z-40 w-56 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl p-1.5 shadow-2xl space-y-0.5 animate-fade-in">
+                  <div class="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Swap Bottom Widget</div>
+                  <button type="button" class="swap-widget-opt w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-widget="dayschools">
+                    <i data-lucide="video" class="w-3.5 h-3.5 text-sky-500"></i>
+                    <span>Pending Day Schools</span>
+                  </button>
+                  <button type="button" class="swap-widget-opt w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-widget="exam_sheet">
+                    <i data-lucide="file-check" class="w-3.5 h-3.5 text-rose-500"></i>
+                    <span>Exam Revision Sheet</span>
+                  </button>
+                  <button type="button" class="swap-widget-opt w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-widget="scratchpad">
+                    <i data-lucide="edit-3" class="w-3.5 h-3.5 text-amber-500"></i>
+                    <span>Study Scratchpad</span>
+                  </button>
+                  <button type="button" class="swap-widget-opt w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-widget="sprints">
+                    <i data-lucide="timer" class="w-3.5 h-3.5 text-indigo-500"></i>
+                    <span>Active Study Sprints</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 1. Pane: Pending Day Schools -->
+          <div id="widgetPaneDaySchools" class="widget-content-pane space-y-3">
+            <div id="pendingLecturesContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+          </div>
+
+          <!-- 2. Pane: Exam Revision Tracker Sheet -->
+          <div id="widgetPaneExamSheet" class="widget-content-pane hidden space-y-3">
+            <div id="examRevisionSheetContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+          </div>
+
+          <!-- 3. Pane: Freeform Study Scratchpad -->
+          <div id="widgetPaneScratchpad" class="widget-content-pane hidden space-y-2">
+            <div class="flex items-center justify-between text-[11px] text-[var(--text-muted)]">
+              <span>Markdown quick notes & formula reminders:</span>
+              <span id="scratchpadStatusIndicator" class="font-mono text-[10px] text-emerald-500">Auto-saved</span>
+            </div>
+            <textarea id="homeScratchpadTextarea" placeholder="Type quick study formulas, lecture questions, or revision ideas here..." class="scratchpad-textarea"></textarea>
+          </div>
+
+          <!-- 4. Pane: Active Study Sprints & Milestones -->
+          <div id="widgetPaneSprints" class="widget-content-pane hidden space-y-3">
+            <div id="activeSprintsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- VIEW 2: MODULAR PROJECT & SUB-PAGE SCOPED VIEW (`view-project-scoped`)-->
+      <!-- ===================================================================== -->
+      <section id="view-project-scoped" class="view-content space-y-4 animate-fade-in hidden">
+        
+        <!-- Project Header: Icon, Title, Status Filter & Context-Aware Add Record Button -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-[var(--border-subtle)] gap-3">
+          <div class="flex items-center gap-3">
+            <div id="scopedProjectIcon" class="w-8 h-8 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-primary)] shadow-sm">
+              <i data-lucide="folder" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h2 id="scopedProjectTitle" class="text-base font-semibold text-[var(--text-primary)]">Page Workspace</h2>
+              <p id="scopedProjectDesc" class="text-xs text-[var(--text-muted)]">Scoped data view with customizable modular tabs.</p>
+            </div>
+          </div>
+
+          <!-- Page-Level Actions: Context-Aware Add Record (Bypasses Destination Picker) -->
+          <div class="flex items-center gap-2">
+            <select id="scopedStatusFilter" class="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1 text-xs text-[var(--text-secondary)] outline-none cursor-pointer">
+              <option value="all">All Statuses</option>
+              <option value="not-started">To Do</option>
+              <option value="in-progress">In Progress</option>
+              <option value="review">Review</option>
+              <option value="done">Done</option>
+            </select>
+            
+            <!-- Context-Aware Add Button -->
+            <button type="button" id="scopedNewItemBtn" class="bg-zinc-900 text-white hover:bg-black dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02]">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>Add Record</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- DYNAMIC PROJECT VIEW TAB BAR (With Hover Close Icon & Add View Popover) -->
+        <div class="project-view-tab-bar">
+          <div class="flex items-center gap-1 overflow-x-auto py-0.5" id="projectTabsList"></div>
+
+          <div class="relative shrink-0">
+            <button type="button" id="openAddViewMenuBtn" class="add-view-dropdown-btn" title="Add a layout view">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>Add View</span>
+              <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
+            </button>
+
+            <!-- Floating View Options Menu (6 Polymorphic Layouts) -->
+            <div id="addViewMenuPopover" class="hidden absolute right-0 top-8 z-40 w-48 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl p-1.5 shadow-2xl space-y-0.5 animate-fade-in">
+              <div class="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Add Layout View</div>
+              <button type="button" class="add-view-type-opt w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-view-type="table">
+                <i data-lucide="table" class="w-3.5 h-3.5 text-blue-500"></i>
+                <span>Data Table</span>
+              </button>
+              <button type="button" class="add-view-type-opt w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-view-type="board">
+                <i data-lucide="kanban" class="w-3.5 h-3.5 text-amber-500"></i>
+                <span>Kanban Board</span>
+              </button>
+              <button type="button" class="add-view-type-opt w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-view-type="calendar">
+                <i data-lucide="calendar" class="w-3.5 h-3.5 text-purple-500"></i>
+                <span>Calendar</span>
+              </button>
+              <button type="button" class="add-view-type-opt w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-view-type="media">
+                <i data-lucide="video" class="w-3.5 h-3.5 text-sky-500"></i>
+                <span>Media Hub</span>
+              </button>
+              <button type="button" class="add-view-type-opt w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-view-type="timeline">
+                <i data-lucide="chart-gantt" class="w-3.5 h-3.5 text-pink-500"></i>
+                <span>Timeline / Roadmap</span>
+              </button>
+              <button type="button" class="add-view-type-opt w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-view-type="todo">
+                <i data-lucide="check-square" class="w-3.5 h-3.5 text-emerald-500"></i>
+                <span>To-Do List</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCOPED SUB-VIEW CONTAINER -->
+        <div id="scopedLayoutContainer">
+          
+          <!-- Layout 1: Scoped Table Grid (Customizable Airtable/Notion Grid with Header Drag & Drop) -->
+          <div id="scopedTableLayout" class="scoped-layout-view hidden space-y-3">
+            <div class="table-view-container shadow-sm">
+              <table class="spreadsheet-table">
+                <thead>
+                  <tr id="scopedTableHeadRow">
+                    <!-- Dynamic draggable column headers rendered by JavaScript -->
+                  </tr>
+                </thead>
+                <tbody id="scopedTableBody"></tbody>
+              </table>
+
+              <!-- Fast Inline New Row Creation Bar -->
+              <form id="tableFastNewRowForm" class="table-fast-new-row">
+                <i data-lucide="plus" class="w-3.5 h-3.5 text-[var(--text-muted)]"></i>
+                <input type="text" id="tableFastNewRowInput" placeholder="+ New Row (type name and press Enter)..." class="outline-none" />
+                <button type="submit" class="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] px-2 py-0.5 rounded hover:bg-[var(--row-hover)] font-medium">Add</button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Layout 2: Scoped Kanban Board -->
+          <div id="scopedBoardLayout" class="scoped-layout-view hidden">
+            <div class="kanban-grid">
+              
+              <!-- Lane: Not Started / To Do -->
+              <div class="kanban-column">
+                <div class="kanban-column-header">
+                  <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded text-[11px] font-medium notion-tag-gray">To Do</span>
+                    <span id="scopedCountTodo" class="text-[11px] font-mono text-[var(--text-muted)]">0</span>
+                  </div>
+                  <button type="button" class="scoped-add-card-btn p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded hover:bg-[var(--row-hover)]" data-target-status="not-started">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+                <div class="kanban-cards-container" id="scopedKanbanTodoCol" data-col-status="not-started"></div>
+              </div>
+
+              <!-- Lane: In Progress -->
+              <div class="kanban-column">
+                <div class="kanban-column-header">
+                  <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded text-[11px] font-medium notion-tag-yellow">In Progress</span>
+                    <span id="scopedCountProgress" class="text-[11px] font-mono text-[var(--text-muted)]">0</span>
+                  </div>
+                  <button type="button" class="scoped-add-card-btn p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded hover:bg-[var(--row-hover)]" data-target-status="in-progress">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+                <div class="kanban-cards-container" id="scopedKanbanProgressCol" data-col-status="in-progress"></div>
+              </div>
+
+              <!-- Lane: Review -->
+              <div class="kanban-column">
+                <div class="kanban-column-header">
+                  <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded text-[11px] font-medium notion-tag-purple">Review</span>
+                    <span id="scopedCountReview" class="text-[11px] font-mono text-[var(--text-muted)]">0</span>
+                  </div>
+                  <button type="button" class="scoped-add-card-btn p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded hover:bg-[var(--row-hover)]" data-target-status="review">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+                <div class="kanban-cards-container" id="scopedKanbanReviewCol" data-col-status="review"></div>
+              </div>
+
+              <!-- Lane: Done -->
+              <div class="kanban-column">
+                <div class="kanban-column-header">
+                  <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded text-[11px] font-medium notion-tag-green">Done</span>
+                    <span id="scopedCountDone" class="text-[11px] font-mono text-[var(--text-muted)]">0</span>
+                  </div>
+                  <button type="button" class="scoped-add-card-btn p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded hover:bg-[var(--row-hover)]" data-target-status="done">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+                <div class="kanban-cards-container" id="scopedKanbanDoneCol" data-col-status="done"></div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Layout 3: Scoped Sub-Calendar (Isolated for this module) -->
+          <div id="scopedCalendarLayout" class="scoped-layout-view hidden space-y-3">
+            <div class="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 space-y-3.5 shadow-sm">
+              <div class="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="calendar" class="w-4 h-4 text-purple-500"></i>
+                  <h3 id="scopedCalMonthHeading" class="text-sm font-semibold text-[var(--text-primary)]">Month View</h3>
+                </div>
+                <div class="flex items-center gap-1">
+                  <button id="scopedCalPrevBtn" class="p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-canvas)] border border-[var(--border-subtle)]">
+                    <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                  </button>
+                  <button id="scopedCalTodayBtn" class="text-xs px-2 py-0.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-canvas)] border border-[var(--border-subtle)] font-medium">
+                    Today
+                  </button>
+                  <button id="scopedCalNextBtn" class="p-1 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-canvas)] border border-[var(--border-subtle)]">
+                    <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-7 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] pb-1">
+                <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+              </div>
+              <div id="scopedCalendarGrid"></div>
+            </div>
+          </div>
+
+          <!-- Layout 4: Scoped Media Hub (Subject-Categorized Video & Drive Vault) -->
+          <div id="scopedMediaLayout" class="scoped-layout-view hidden space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i data-lucide="film" class="w-4 h-4 text-sky-500"></i>
+                <span class="text-xs font-semibold text-[var(--text-primary)]">Subject Lecture Vault</span>
+              </div>
+              <button type="button" id="addNewSubjectGroupBtn" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1.5 shadow-sm">
+                <i data-lucide="folder-plus" class="w-3.5 h-3.5"></i>
+                <span>+ New Subject Category</span>
+              </button>
+            </div>
+
+            <div id="scopedMediaCardsContainer" class="space-y-6"></div>
+          </div>
+
+          <!-- Layout 5: Scoped Timeline Gantt Roadmap -->
+          <div id="scopedTimelineLayout" class="scoped-layout-view hidden space-y-3">
+            <div class="timeline-container shadow-sm">
+              <div id="scopedTimelineHeaderDays" class="timeline-header-days"></div>
+              <div id="scopedTimelineRowsContainer" class="timeline-rows"></div>
+            </div>
+          </div>
+
+          <!-- Layout 6: Scoped Simple To-Do List View Engine -->
+          <div id="scopedTodoLayout" class="scoped-layout-view hidden space-y-3">
+            <div class="todo-view-container space-y-4 shadow-sm">
+              
+              <!-- Fast To-Do Input Bar -->
+              <form id="scopedTodoAddForm" class="flex items-center gap-2 pb-2 border-b border-[var(--border-subtle)]">
+                <i data-lucide="plus" class="w-4 h-4 text-[var(--text-muted)]"></i>
+                <input type="text" id="scopedTodoInput" placeholder="Add a new to-do task (press Enter)..." class="w-full bg-transparent text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none font-medium" />
+                <button type="submit" class="px-3 py-1 rounded-lg bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-xs font-medium hover:bg-[var(--row-hover)]">Add</button>
+              </form>
+
+              <!-- Active Checklist -->
+              <div class="space-y-2">
+                <div class="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  <span>Active Tasks</span>
+                  <span id="scopedTodoActiveCount" class="font-mono">0 active</span>
+                </div>
+                <div id="scopedTodoActiveList" class="space-y-1.5"></div>
+              </div>
+
+              <!-- Collapsed Completed Section (Auto-Sink) -->
+              <div class="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+                <button type="button" id="toggleCompletedTodoBtn" class="flex items-center gap-2 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                  <i data-lucide="chevron-right" class="w-3.5 h-3.5 transition-transform" id="completedTodoChevron"></i>
+                  <span>Completed (<span id="scopedTodoCompletedCount">0</span>)</span>
+                </button>
+                <div id="scopedTodoCompletedList" class="space-y-1.5 hidden pl-2"></div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ===================================================================== -->
+      <!-- VIEW 3: GLOBAL MASTER CALENDAR (`view-calendar`)                      -->
+      <!-- ===================================================================== -->
+      <section id="view-calendar" class="view-content space-y-4 animate-fade-in hidden">
+        <div class="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 space-y-4 shadow-sm">
+          <div class="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+            <div class="flex items-center gap-2.5">
+              <i data-lucide="calendar-days" class="w-5 h-5 text-indigo-500"></i>
+              <div>
+                <h2 id="calMonthYearHeading" class="text-base font-semibold text-[var(--text-primary)]">August 2026</h2>
+                <p class="text-xs text-[var(--text-muted)]">Master Academic Calendar • Unified Two-Way Sync</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1 bg-[var(--bg-canvas)] border border-[var(--border-subtle)] rounded-lg p-0.5">
+                <button id="calPrevBtn" class="p-1 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)]">
+                  <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                </button>
+                <button id="calTodayBtn" class="text-xs px-2.5 py-0.5 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] font-medium">
+                  Today
+                </button>
+                <button id="calNextBtn" class="p-1 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)]">
+                  <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-7 text-center text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] pb-1">
+            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+          </div>
+
+          <div id="smartCalendarGrid"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- UNIVERSAL MODALS & DYNAMIC FLOATING POPOVERS                           -->
+  <!-- ===================================================================== -->
+
+  <!-- Universal Quick Add Modal (Top Omnibar "+ New Item") -->
+  <div id="universalAddModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-fade-in">
+    <div class="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)] flex items-center gap-2">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-indigo-500"></i> Universal Study Quick Add
+        </h3>
+        <button id="closeUniversalAddModalBtn" class="text-[var(--text-muted)] hover:text-[var(--text-primary)]"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+
+      <form id="universalAddForm" class="space-y-3.5">
+        <div>
+          <label class="block text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Destination Sub-Page</label>
+          <select id="universalDestSelect" class="w-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-lg h-9 text-xs px-3 outline-none cursor-pointer"></select>
+        </div>
+
+        <div>
+          <label class="block text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Record Type</label>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="flex items-center justify-center gap-2 p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-xs text-[var(--text-secondary)] cursor-pointer hover:border-[var(--border-hover)]">
+              <input type="radio" name="uItemType" value="task" checked class="accent-indigo-500" />
+              <span>Study Task</span>
+            </label>
+            <label class="flex items-center justify-center gap-2 p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-xs text-[var(--text-secondary)] cursor-pointer hover:border-[var(--border-hover)]">
+              <input type="radio" name="uItemType" value="event" class="accent-indigo-500" />
+              <span>Exam / Viva</span>
+            </label>
+            <label class="flex items-center justify-center gap-2 p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-xs text-[var(--text-secondary)] cursor-pointer hover:border-[var(--border-hover)]">
+              <input type="radio" name="uItemType" value="media" class="accent-indigo-500" />
+              <span>Day School</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Title / Subject</label>
+          <input type="text" id="universalTitleInput" placeholder="e.g. Distributed Systems Viva Defense" required class="w-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-lg h-9 text-xs px-3 outline-none" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Date</label>
+            <input type="date" id="universalDateInput" required class="w-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-lg h-9 text-xs px-3 outline-none" />
+          </div>
+          <div>
+            <label class="block text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Time (Optional)</label>
+            <input type="time" id="universalTimeInput" class="w-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-lg h-9 text-xs px-3 outline-none" />
+          </div>
+        </div>
+
+        <div id="uVideoUrlWrapper" class="hidden">
+          <label class="block text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Lecture Video URL</label>
+          <input type="url" id="universalVideoUrlInput" placeholder="https://zoom.us/rec/..." class="w-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-lg h-9 text-xs px-3 outline-none" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Initial Status</label>
+            <select id="universalStatusSelect" class="w-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-lg h-9 text-xs px-3 outline-none cursor-pointer">
+              <option value="not-started">Not Started</option>
+              <option value="in-progress">In Progress</option>
+              <option value="review">Review</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Color Tag</label>
+            <select id="universalColorSelect" class="w-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-lg h-9 text-xs px-3 outline-none cursor-pointer">
+              <option value="purple">Purple (Viva / Academic)</option>
+              <option value="blue">Blue (Day School)</option>
+              <option value="red">Red (Exams / Urgent)</option>
+              <option value="orange">Orange (Assignment)</option>
+              <option value="green">Green (Completed)</option>
+              <option value="yellow">Yellow (Review)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Notes / Description</label>
+          <textarea id="universalNotesInput" placeholder="Key lecture formulas, presentation links..." rows="2" class="w-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-lg p-2.5 text-xs outline-none resize-none"></textarea>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+          <button type="button" id="cancelUniversalAddModalBtn" class="px-3.5 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:bg-[var(--row-hover)]">Cancel</button>
+          <button type="submit" class="bg-zinc-900 text-white hover:bg-black dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 px-4 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Add Record</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Notion Page Modal (Full Feature Record Inspector) -->
+  <div id="pageModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-2 sm:p-4 animate-fade-in">
+    <div id="pageModalCard" class="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden transition-all duration-200">
+      
+      <!-- Modal Top Action Bar -->
+      <div class="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)] shrink-0">
+        <div class="flex items-center gap-2">
+          <span id="pageModalBadge" class="text-xs px-2.5 py-0.5 rounded font-medium flex items-center gap-1.5 notion-tag-purple">
+            <span id="pageModalBadgeText">Study Item</span>
+          </span>
+          <span class="text-[10px] text-[var(--text-muted)] font-mono" id="pageModalCreatedDate">Today</span>
+        </div>
+
+        <div class="flex items-center gap-1">
+          <button type="button" id="expandPageModalBtn" class="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)]" title="Expand Fullscreen">
+            <i data-lucide="maximize-2" class="w-4 h-4"></i>
+          </button>
+          <button type="button" id="closePageModalBtn" class="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)]" title="Close Modal (Esc)">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div class="flex-1 overflow-y-auto pr-1 py-4 space-y-5">
+        
+        <!-- Editable Page Title -->
+        <div>
+          <input type="text" id="pageTitleInput" placeholder="Untitled Study Entry" class="w-full bg-transparent text-xl sm:text-2xl font-bold text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none tracking-tight" />
+        </div>
+
+        <!-- Notion Pastel Color Swatches -->
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-[var(--text-muted)] w-24">Color Tag:</span>
+          <div id="pageColorPicker" class="flex items-center gap-1.5 flex-wrap">
+            <button type="button" data-color="gray" class="notion-swatch-sq gray" title="Gray"></button>
+            <button type="button" data-color="brown" class="notion-swatch-sq brown" title="Brown"></button>
+            <button type="button" data-color="orange" class="notion-swatch-sq orange" title="Orange"></button>
+            <button type="button" data-color="yellow" class="notion-swatch-sq yellow" title="Yellow"></button>
+            <button type="button" data-color="green" class="notion-swatch-sq green" title="Green"></button>
+            <button type="button" data-color="blue" class="notion-swatch-sq blue" title="Blue"></button>
+            <button type="button" data-color="purple" class="notion-swatch-sq purple" title="Purple"></button>
+            <button type="button" data-color="pink" class="notion-swatch-sq pink" title="Pink"></button>
+            <button type="button" data-color="red" class="notion-swatch-sq red" title="Red"></button>
+          </div>
+        </div>
+
+        <!-- Date / Multi-Day Span Picker -->
+        <div class="space-y-2 pt-2 border-t border-[var(--border-subtle)]">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            <div class="flex items-center gap-2">
+              <i data-lucide="calendar" class="w-4 h-4 text-[var(--text-muted)]"></i>
+              <span class="text-xs text-[var(--text-muted)] w-20">Date:</span>
+              <input type="date" id="pageStartDateInput" class="bg-[var(--bg-canvas)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1 text-xs text-[var(--text-primary)] font-mono outline-none" />
+            </div>
+
+            <div id="pageEndDateWrapper" class="items-center gap-2" style="display: none;">
+              <span class="text-xs text-[var(--text-muted)]">➔</span>
+              <input type="date" id="pageEndDateInput" class="bg-[var(--bg-canvas)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1 text-xs text-[var(--text-primary)] font-mono outline-none" />
+            </div>
+          </div>
+
+          <div class="flex items-center gap-4 pl-6 text-xs text-[var(--text-secondary)]">
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" id="pageToggleRange" class="custom-checkbox" />
+              <span>Multi-Day Span</span>
+            </label>
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" id="pageToggleTime" class="custom-checkbox" />
+              <span>Include Time</span>
+            </label>
+          </div>
+
+          <!-- Time Pickers -->
+          <div id="pageTimePickerRow" class="hidden flex items-center gap-2 pl-6 pt-1">
+            <input type="time" id="pageStartTimeInput" class="bg-[var(--bg-canvas)] border border-[var(--border-subtle)] rounded-lg px-2 py-0.5 text-xs text-[var(--text-primary)] font-mono outline-none" />
+            <span class="text-xs text-[var(--text-muted)]">to</span>
+            <input type="time" id="pageEndTimeInput" class="bg-[var(--bg-canvas)] border border-[var(--border-subtle)] rounded-lg px-2 py-0.5 text-xs text-[var(--text-primary)] font-mono outline-none" />
+          </div>
+
+          <!-- Reminders -->
+          <div class="flex items-center gap-2 pl-6 pt-1">
+            <i data-lucide="bell" class="w-3.5 h-3.5 text-[var(--text-muted)]"></i>
+            <span class="text-xs text-[var(--text-muted)]">Reminder:</span>
+            <select id="pageReminderSelect" class="bg-[var(--bg-canvas)] border border-[var(--border-subtle)] rounded-lg px-2 py-0.5 text-xs text-[var(--text-secondary)] outline-none cursor-pointer">
+              <option value="none">None</option>
+              <option value="at_time">At time of event</option>
+              <option value="5_min">5 minutes before</option>
+              <option value="15_min">15 minutes before</option>
+              <option value="1_day">1 day before</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Dynamic Notion-Style Properties Schema List -->
+        <div class="pt-2 border-t border-[var(--border-subtle)] space-y-2">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Properties</div>
+          <div id="dynamicPropertiesList" class="space-y-1"></div>
+
+          <!-- + Add Property Dropdown -->
+          <div class="relative pt-1">
+            <button type="button" id="openAddPropertyMenuBtn" class="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] px-2 py-1 rounded hover:bg-[var(--row-hover)] transition-colors">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>Add a property</span>
+            </button>
+
+            <!-- Property Type Menu -->
+            <div id="propertyTypeMenu" class="hidden absolute left-0 top-8 z-40 w-52 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl p-1.5 shadow-2xl space-y-0.5 animate-fade-in">
+              <button type="button" class="add-prop-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-type="select">
+                <i data-lucide="chevron-down-circle" class="w-3.5 h-3.5 text-pink-500"></i>
+                <span>Select Tag</span>
+              </button>
+              <button type="button" class="add-prop-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-type="status">
+                <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-blue-500"></i>
+                <span>Status</span>
+              </button>
+              <button type="button" class="add-prop-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-type="priority">
+                <i data-lucide="flag" class="w-3.5 h-3.5 text-amber-500"></i>
+                <span>Priority</span>
+              </button>
+              <button type="button" class="add-prop-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-type="drive">
+                <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-blue-500"></i>
+                <span>Google Drive / Resource</span>
+              </button>
+              <button type="button" class="add-prop-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-type="percentage">
+                <i data-lucide="percent" class="w-3.5 h-3.5 text-purple-500"></i>
+                <span>Number / Percentage</span>
+              </button>
+              <button type="button" class="add-prop-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-type="url">
+                <i data-lucide="link" class="w-3.5 h-3.5 text-sky-500"></i>
+                <span>URL / Link</span>
+              </button>
+              <button type="button" class="add-prop-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-type="file">
+                <i data-lucide="paperclip" class="w-3.5 h-3.5 text-amber-500"></i>
+                <span>Files & Media</span>
+              </button>
+              <button type="button" class="add-prop-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-type="checkbox">
+                <i data-lucide="check-square" class="w-3.5 h-3.5 text-emerald-500"></i>
+                <span>Checkbox</span>
+              </button>
+              <button type="button" class="add-prop-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-type="email">
+                <i data-lucide="mail" class="w-3.5 h-3.5 text-rose-500"></i>
+                <span>Email</span>
+              </button>
+              <button type="button" class="add-prop-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-type="phone">
+                <i data-lucide="phone" class="w-3.5 h-3.5 text-indigo-500"></i>
+                <span>Phone</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes / Study Comments Section -->
+        <div class="pt-4 border-t border-[var(--border-subtle)] space-y-2">
+          <div class="flex items-center gap-2">
+            <div class="w-5 h-5 rounded-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] flex items-center justify-center text-[10px] text-[var(--text-primary)] font-bold">
+              S
+            </div>
+            <span class="text-xs font-medium text-[var(--text-secondary)]">Notes & Key Formulas</span>
+          </div>
+          <textarea id="pageNotesTextarea" placeholder="Add notes, tasks breakdown, or lecture key points..." rows="4" class="w-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] rounded-xl p-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-hover)] resize-none"></textarea>
+        </div>
+
+      </div>
+
+      <!-- Footer Action Bar -->
+      <div class="flex items-center justify-between pt-3 border-t border-[var(--border-subtle)] mt-2 shrink-0">
+        <button type="button" id="deletePageItemBtn" class="flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 px-2 py-1 rounded hover:bg-rose-500/10 transition-colors">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          <span>Delete Entry</span>
+        </button>
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] text-[var(--text-muted)]">Changes auto-saved</span>
+          <button type="button" id="donePageModalBtn" class="bg-zinc-900 text-white hover:bg-black dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors shadow-sm">
+            Done
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Floating Property Edit Popover -->
+  <div id="propertyEditPopover" class="notion-popover-panel hidden">
+    <div class="space-y-2.5">
+      <div class="space-y-1">
+        <label class="block text-[10px] uppercase font-bold text-[var(--text-muted)]">Property Name</label>
+        <input type="text" id="propEditNameInput" class="notion-popover-input" placeholder="Property name..." />
+      </div>
+      <div class="flex items-center justify-between text-[11px] text-[var(--text-secondary)] px-1">
+        <span>Type:</span>
+        <div class="flex items-center gap-1 font-medium text-[var(--text-primary)]">
+          <i id="propEditTypeIcon" data-lucide="tag" class="w-3.5 h-3.5"></i>
+          <span id="propEditTypeLabel">Select</span>
+        </div>
+      </div>
+      <div class="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between">
+        <button type="button" id="deletePropertyFromPopoverBtn" class="text-rose-500 hover:text-rose-600 text-xs flex items-center gap-1 px-1.5 py-1 rounded hover:bg-rose-500/10">
+          <i data-lucide="trash-2" class="w-3 h-3"></i>
+          <span>Delete</span>
+        </button>
+        <button type="button" id="savePropertyFromPopoverBtn" class="bg-[var(--text-primary)] text-[var(--bg-canvas)] px-3 py-1 rounded-md text-xs font-semibold">
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Popover -->
+  <div id="statusDropdownPopover" class="notion-popover-panel hidden space-y-2">
+    <div>
+      <input type="text" id="statusSearchInput" placeholder="Search or create a status..." class="notion-popover-input" />
+    </div>
+    <div class="space-y-1">
+      <div class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-1">Select Status</div>
+      <div id="statusOptionsContainer" class="space-y-0.5 max-h-48 overflow-y-auto pr-0.5"></div>
+    </div>
+  </div>
+
+  <!-- Status Color Options Sub-Menu -->
+  <div id="statusColorSubmenu" class="notion-popover-panel hidden w-48 space-y-1">
+    <div class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-1.5 py-0.5">Status Color</div>
+    <div id="statusColorList" class="space-y-0.5 max-h-48 overflow-y-auto pr-0.5"></div>
+    <div class="border-t border-[var(--border-subtle)] pt-1 mt-1">
+      <button type="button" id="deleteStatusOptionBtn" class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-rose-500 hover:bg-rose-500/10 text-left">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        <span>Delete Status</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Notion-Style Tag Select Popover -->
+  <div id="tagSelectPopover" class="notion-popover-panel hidden space-y-2">
+    <div>
+      <input type="text" id="tagSearchInput" placeholder="Search for an option..." class="notion-popover-input" />
+    </div>
+    <div class="space-y-1">
+      <div class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-1">Select an option</div>
+      <div id="tagOptionsContainer" class="space-y-0.5 max-h-48 overflow-y-auto pr-0.5"></div>
+    </div>
+  </div>
+
+  <!-- Tag Color Options Sub-Menu -->
+  <div id="tagColorSubmenu" class="notion-popover-panel hidden w-48 space-y-1">
+    <div class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-1.5 py-0.5">Colors</div>
+    <div id="tagColorList" class="space-y-0.5 max-h-48 overflow-y-auto pr-0.5"></div>
+    <div class="border-t border-[var(--border-subtle)] pt-1 mt-1">
+      <button type="button" id="deleteTagOptionBtn" class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-rose-500 hover:bg-rose-500/10 text-left">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        <span>Delete</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Priority Selection Popover -->
+  <div id="prioritySelectPopover" class="notion-popover-panel hidden w-44 space-y-1">
+    <div class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-1.5 py-0.5">Select Priority</div>
+    <div class="space-y-0.5">
+      <button type="button" class="priority-opt-btn w-full flex items-center justify-between px-2 py-1.5 rounded text-xs hover:bg-[var(--row-hover)] text-left" data-priority="Urgent" data-color="red">
+        <span class="px-2 py-0.5 rounded text-[11px] font-medium notion-priority-urgent">Urgent / High</span>
+        <i data-lucide="flag" class="w-3.5 h-3.5 text-rose-500"></i>
+      </button>
+      <button type="button" class="priority-opt-btn w-full flex items-center justify-between px-2 py-1.5 rounded text-xs hover:bg-[var(--row-hover)] text-left" data-priority="Medium" data-color="yellow">
+        <span class="px-2 py-0.5 rounded text-[11px] font-medium notion-priority-medium">Medium</span>
+        <i data-lucide="flag" class="w-3.5 h-3.5 text-amber-500"></i>
+      </button>
+      <button type="button" class="priority-opt-btn w-full flex items-center justify-between px-2 py-1.5 rounded text-xs hover:bg-[var(--row-hover)] text-left" data-priority="Low" data-color="blue">
+        <span class="px-2 py-0.5 rounded text-[11px] font-medium notion-priority-low">Low</span>
+        <i data-lucide="flag" class="w-3.5 h-3.5 text-sky-500"></i>
+      </button>
+      <button type="button" class="priority-opt-btn w-full flex items-center justify-between px-2 py-1.5 rounded text-xs hover:bg-[var(--row-hover)] text-left" data-priority="None" data-color="gray">
+        <span class="px-2 py-0.5 rounded text-[11px] font-medium notion-priority-none">None</span>
+        <i data-lucide="minus" class="w-3.5 h-3.5 text-zinc-400"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Add Column Popover -->
+  <div id="addColumnPopover" class="notion-popover-panel hidden w-56 space-y-1">
+    <div class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-1.5 py-0.5">Add Property / Column</div>
+    <div class="space-y-0.5 max-h-60 overflow-y-auto pr-0.5">
+      <button type="button" class="add-col-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-col-type="status">
+        <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-blue-500"></i>
+        <span>Status</span>
+      </button>
+      <button type="button" class="add-col-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-col-type="priority">
+        <i data-lucide="flag" class="w-3.5 h-3.5 text-amber-500"></i>
+        <span>Priority</span>
+      </button>
+      <button type="button" class="add-col-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-col-type="drive">
+        <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-blue-500"></i>
+        <span>Google Drive / Resource</span>
+      </button>
+      <button type="button" class="add-col-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-col-type="date">
+        <i data-lucide="calendar" class="w-3.5 h-3.5 text-purple-500"></i>
+        <span>Date / Span</span>
+      </button>
+      <button type="button" class="add-col-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-col-type="url">
+        <i data-lucide="link" class="w-3.5 h-3.5 text-sky-500"></i>
+        <span>URL / Link</span>
+      </button>
+      <button type="button" class="add-col-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-col-type="phone">
+        <i data-lucide="phone" class="w-3.5 h-3.5 text-indigo-500"></i>
+        <span>Phone Number</span>
+      </button>
+      <button type="button" class="add-col-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-col-type="checkbox">
+        <i data-lucide="check-square" class="w-3.5 h-3.5 text-emerald-500"></i>
+        <span>Checkbox</span>
+      </button>
+      <button type="button" class="add-col-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-col-type="category">
+        <i data-lucide="tag" class="w-3.5 h-3.5 text-pink-500"></i>
+        <span>Category / Tag</span>
+      </button>
+      <button type="button" class="add-col-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-col-type="text">
+        <i data-lucide="align-left" class="w-3.5 h-3.5 text-zinc-400"></i>
+        <span>Text / Note</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Table Column Context Menu -->
+  <div id="columnContextMenu" class="property-context-menu hidden">
+    <div class="property-context-item" id="ctxMoveColLeftBtn">
+      <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+      <span>Move Left</span>
+    </div>
+    <div class="property-context-item" id="ctxMoveColRightBtn">
+      <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+      <span>Move Right</span>
+    </div>
+    <div class="property-context-item border-t border-[var(--border-subtle)] my-0.5" style="padding:0; margin: 2px 0;"></div>
+    <div class="property-context-item" id="ctxRenameColBtn">
+      <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+      <span>Rename Column</span>
+    </div>
+    <div class="property-context-item danger" id="ctxDeleteColBtn">
+      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+      <span>Delete Column</span>
+    </div>
+  </div>
+
+  <!-- Reusable Property Context Menu -->
+  <div id="propertyContextMenu" class="property-context-menu hidden">
+    <div class="property-context-item" id="ctxDuplicatePropBtn">
+      <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+      <span>Duplicate Property</span>
+    </div>
+    <div class="property-context-item" id="ctxRenamePropBtn">
+      <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+      <span>Rename Property</span>
+    </div>
+    <div class="property-context-item danger" id="ctxDeletePropBtn">
+      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+      <span>Delete Property</span>
+    </div>
+  </div>
+
+  <!-- Universal Confirmation Modal (Reusable Notion-Style Delete Dialog) -->
+  <div id="deleteConfirmModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+    <div class="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+        <h3 id="deleteModalTitle" class="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-500"></i>
+          <span>Delete Item?</span>
+        </h3>
+        <button id="closeDeleteModalBtn" class="text-[var(--text-muted)] hover:text-[var(--text-primary)]"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div>
+        <p id="deleteModalDesc" class="text-xs text-[var(--text-secondary)] leading-relaxed">
+          Are you sure you want to delete this item? This action cannot be undone.
+        </p>
+      </div>
+      <div class="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+        <button type="button" id="cancelDeleteBtn" class="bg-transparent hover:bg-[var(--row-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs px-3.5 py-2 rounded-lg transition-colors">
+          Cancel
+        </button>
+        <button type="button" id="confirmDeleteBtn" class="bg-rose-600 hover:bg-rose-500 text-white font-medium px-4 py-2 rounded-lg text-xs transition-colors shadow-sm">
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Custom Category / Project -->
+  <div id="categoryModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-fade-in">
+    <div class="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)] flex items-center gap-2">
+          <i data-lucide="folder-plus" class="w-4 h-4 text-[var(--text-muted)]"></i> Create Study Module
+        </h3>
+        <button id="closeCategoryModalBtn" class="text-[var(--text-muted)] hover:text-[var(--text-primary)]"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <form id="categoryForm" class="space-y-3.5">
+        <div>
+          <label class="block text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Module Name</label>
+          <input type="text" id="catTitleInput" placeholder="e.g. Artificial Intelligence, Operating Systems..." required class="w-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-lg h-9 text-xs px-3 outline-none" />
+        </div>
+        <div>
+          <label class="block text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Module Icon</label>
+          <select id="catIconInput" class="w-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-lg h-9 text-xs px-3 outline-none cursor-pointer">
+            <option value="book-open">📖 Book / Course</option>
+            <option value="video">🎥 Video / Lecture</option>
+            <option value="calendar">📅 Calendar</option>
+            <option value="file-text">📄 Exam / File</option>
+            <option value="clipboard-check">📋 Assignment / Task</option>
+            <option value="code">💻 Code / Labs</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Primary Layout View</label>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="flex items-center justify-center gap-1.5 p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-xs text-[var(--text-secondary)] cursor-pointer hover:border-[var(--border-hover)]">
+              <input type="radio" name="catTemplate" value="table" checked class="accent-indigo-500" />
+              <span>Table</span>
+            </label>
+            <label class="flex items-center justify-center gap-1.5 p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-xs text-[var(--text-secondary)] cursor-pointer hover:border-[var(--border-hover)]">
+              <input type="radio" name="catTemplate" value="board" class="accent-indigo-500" />
+              <span>Board</span>
+            </label>
+            <label class="flex items-center justify-center gap-1.5 p-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-xs text-[var(--text-secondary)] cursor-pointer hover:border-[var(--border-hover)]">
+              <input type="radio" name="catTemplate" value="media" class="accent-indigo-500" />
+              <span>Media</span>
+            </label>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+          <button type="button" id="cancelCategoryModalBtn" class="px-3.5 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:bg-[var(--row-hover)]">Cancel</button>
+          <button type="submit" class="bg-zinc-900 text-white hover:bg-black dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 px-4 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Create Module</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Sub-Module Creator -->
+  <div id="subItemModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-fade-in">
+    <div class="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)] flex items-center gap-2">
+          <i data-lucide="plus" class="w-4 h-4 text-[var(--text-muted)]"></i> Add Study Sub-module
+        </h3>
+        <button id="closeSubItemModalBtn" class="text-[var(--text-muted)] hover:text-[var(--text-primary)]"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <form id="subItemForm" class="space-y-3.5">
+        <div>
+          <label class="block text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Sub-module Name</label>
+          <input type="text" id="subItemNameInput" placeholder="e.g. Research Papers, Labs..." required class="w-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-lg h-9 text-xs px-3 outline-none" />
+        </div>
+        <div>
+          <label class="block text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Initial View</label>
+          <select id="subItemTargetView" class="w-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-lg h-9 text-xs px-3 outline-none cursor-pointer">
+            <option value="table">📑 Data Table</option>
+            <option value="board">📋 Kanban Board</option>
+            <option value="calendar">📅 Calendar</option>
+            <option value="media">🎥 Media Hub</option>
+            <option value="todo">📝 To-Do List</option>
+          </select>
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+          <button type="button" id="cancelSubItemModalBtn" class="px-3.5 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:bg-[var(--row-hover)]">Cancel</button>
+          <button type="submit" class="bg-zinc-900 text-white hover:bg-black dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 px-4 py-1.5 rounded-lg text-xs font-semibold shadow-sm">Add Sub-module</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Calendar Day Inspector Popover Modal -->
+  <div id="calendarDayInspector" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+    <div class="day-inspector-modal space-y-3.5">
+      
+      <!-- Inspector Header: Date Display & Close -->
+      <div class="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
+        <div class="flex items-center gap-2">
+          <i data-lucide="calendar" class="w-4 h-4 text-indigo-500"></i>
+          <h3 id="inspectorDateHeading" class="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">Selected Date</h3>
+        </div>
+        <button id="closeDayInspectorBtn" class="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)]" title="Close">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Inspector Scheduled Events Container -->
+      <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+        <div id="inspectorEventsList" class="space-y-2"></div>
+        <div id="inspectorEmptyState" class="hidden text-center py-5 text-xs text-[var(--text-muted)]">
+          <i data-lucide="calendar-check" class="w-6 h-6 mx-auto mb-1 text-[var(--text-muted)] opacity-60"></i>
+          <span>No study events or exams scheduled for this date.</span>
+        </div>
+      </div>
+
+      <!-- Bottom Add Event Action Button -->
+      <div class="pt-3 border-t border-[var(--border-subtle)]">
+        <button type="button" id="inspectorAddEventBtn" class="w-full bg-zinc-900 text-white hover:bg-black dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-all hover:scale-[1.01]">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+          <span>Add new event to this date</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- App Core Script -->
+  <script src="app.js"></script>
+</body>
+</html>
