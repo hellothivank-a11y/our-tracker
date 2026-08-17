@@ -336,7 +336,7 @@ function cyclePriority(item) {
   }
 
   item.priority = nextPriority;
-  
+
   if (item.properties) {
     const pProp = item.properties.find(p => p.type === "priority");
     if (pProp) {
@@ -779,13 +779,13 @@ function seedInitialDomainData() {
 
 function loadStateFromStorage() {
   seedInitialDomainData();
-  
+
   AppState.studies.items = getDomain(STORAGE_KEYS.STUDIES_ITEMS, []);
   AppState.studies.categories = getDomain(STORAGE_KEYS.STUDIES_CATEGORIES, AppState.studies.categories);
   AppState.studies.rootViews = getDomain(STORAGE_KEYS.STUDIES_ROOT_VIEWS, AppState.studies.rootViews);
   AppState.studies.rootTableColumns = getDomain(STORAGE_KEYS.STUDIES_ROOT_COLUMNS, AppState.studies.rootTableColumns || DEFAULT_TABLE_COLUMNS);
   AppState.studies.todos = getDomain(STORAGE_KEYS.STUDIES_TODOS, []);
-  
+
   AppState.ui.homeBottomWidget = localStorage.getItem(STORAGE_KEYS.HOME_BOTTOM_WIDGET) || "dayschools";
 
   AppState.selectOptionsCache = getDomain(STORAGE_KEYS.SELECT_OPTIONS, AppState.selectOptionsCache);
@@ -824,7 +824,7 @@ function renderHierarchicalSidebar() {
 
   const studiesHeaderEl = document.createElement("div");
   studiesHeaderEl.className = `sidebar-item-row category-header-row group ${isStudiesRootActive ? 'active' : ''}`;
-  
+
   studiesHeaderEl.innerHTML = `
     <div class="drag-gutter category-drag-handle" title="Reorder">
       <i data-lucide="grip-vertical" class="w-3.5 h-3.5"></i>
@@ -886,10 +886,10 @@ function renderHierarchicalSidebar() {
           onConfirm: () => {
             AppState.studies.categories = AppState.studies.categories.filter(s => s.id !== sub.id);
             AppState.studies.items = AppState.studies.items.filter(item => item.categoryId !== sub.id);
-            
+
             saveDomain(STORAGE_KEYS.STUDIES_CATEGORIES, AppState.studies.categories);
             saveDomain(STORAGE_KEYS.STUDIES_ITEMS, AppState.studies.items);
-            
+
             renderHierarchicalSidebar();
             syncAllWorkspaceViews();
 
@@ -1033,7 +1033,7 @@ function initRealTimeClock() {
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const seconds = String(now.getSeconds()).padStart(2, '0');
-    
+
     if (clockEl) clockEl.textContent = `${hours}:${minutes}:${seconds}`;
     if (dateEl) {
       const options = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
@@ -1090,6 +1090,9 @@ function navigateToView(viewId) {
     renderSmartCalendar();
   }
 
+  // Close mobile drawer upon view switch
+  closeMobileSidebar();
+
   if (typeof lucide !== 'undefined' && lucide.createIcons) {
     lucide.createIcons();
   }
@@ -1131,7 +1134,7 @@ const VIEW_METADATA = {
 
 function navigateToStudiesRoot(initialView = "calendar") {
   AppState.ui.activeSubPageId = "studies_root";
-  
+
   if (AppState.studies.rootViews.includes(initialView)) {
     AppState.ui.activeScopedLayout = initialView;
   } else {
@@ -1204,7 +1207,7 @@ function renderProjectTabs(targetSub, isRoot) {
 
     const tabBtn = document.createElement("div");
     tabBtn.className = `project-tab-btn ${isActive ? 'active' : ''}`;
-    
+
     const labelGroup = document.createElement("div");
     labelGroup.className = "flex items-center gap-1.5";
     labelGroup.innerHTML = `
@@ -1219,7 +1222,7 @@ function renderProjectTabs(targetSub, isRoot) {
       closeBtn.className = "tab-close-btn";
       closeBtn.title = `Remove ${meta.label} view`;
       closeBtn.innerHTML = `<i data-lucide="x" class="w-3 h-3"></i>`;
-      
+
       closeBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         if (isRoot) {
@@ -1389,7 +1392,7 @@ function renderScopedTable(events, targetSub, isRoot) {
 
       const rect = th.getBoundingClientRect();
       const midpoint = rect.left + rect.width / 2;
-      
+
       if (e.clientX < midpoint) {
         th.classList.add("col-drag-over-left");
         th.classList.remove("col-drag-over-right");
@@ -1691,8 +1694,13 @@ function openAddColumnPopover(anchorEl, targetSub, isRoot) {
   if (!addColumnPopover) return;
 
   const rect = anchorEl.getBoundingClientRect();
-  addColumnPopover.style.left = `${Math.min(window.innerWidth - 240, rect.left - 180)}px`;
-  addColumnPopover.style.top = `${Math.min(window.innerHeight - 280, rect.bottom + 4)}px`;
+  const popoverWidth = 240;
+  const popoverHeight = 280;
+  const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, rect.left - 160));
+  const top = Math.max(10, Math.min(window.innerHeight - popoverHeight - 10, rect.bottom + 4));
+
+  addColumnPopover.style.left = `${left}px`;
+  addColumnPopover.style.top = `${top}px`;
   addColumnPopover.classList.remove("hidden");
 
   AppState.ui.activeColumnContext = { targetSub, isRoot };
@@ -1752,8 +1760,13 @@ function openColumnContextMenu(anchorEl, column, colIndex, targetSub, isRoot) {
   AppState.ui.activeColumnContext = { column, colIndex, targetSub, isRoot };
 
   const rect = anchorEl.getBoundingClientRect();
-  columnContextMenu.style.left = `${Math.min(window.innerWidth - 190, rect.left)}px`;
-  columnContextMenu.style.top = `${Math.min(window.innerHeight - 200, rect.bottom + 4)}px`;
+  const popoverWidth = 190;
+  const popoverHeight = 200;
+  const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, rect.left));
+  const top = Math.max(10, Math.min(window.innerHeight - popoverHeight - 10, rect.bottom + 4));
+
+  columnContextMenu.style.left = `${left}px`;
+  columnContextMenu.style.top = `${top}px`;
   columnContextMenu.classList.remove("hidden");
 }
 
@@ -1766,7 +1779,7 @@ if (ctxMoveColLeftBtn) {
     if (!AppState.ui.activeColumnContext) return;
     const { colIndex, targetSub, isRoot } = AppState.ui.activeColumnContext;
     const columns = getActiveTableColumns(targetSub, isRoot);
-    
+
     if (colIndex > 0) {
       const moved = columns.splice(colIndex, 1)[0];
       columns.splice(colIndex - 1, 0, moved);
@@ -1836,8 +1849,13 @@ function openPrioritySelectPopover(anchorEl, callback) {
   if (!prioritySelectPopover) return;
 
   const rect = anchorEl.getBoundingClientRect();
-  prioritySelectPopover.style.left = `${Math.min(window.innerWidth - 190, rect.left)}px`;
-  prioritySelectPopover.style.top = `${Math.min(window.innerHeight - 200, rect.bottom + 4)}px`;
+  const popoverWidth = 180;
+  const popoverHeight = 200;
+  const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, rect.left));
+  const top = Math.max(10, Math.min(window.innerHeight - popoverHeight - 10, rect.bottom + 4));
+
+  prioritySelectPopover.style.left = `${left}px`;
+  prioritySelectPopover.style.top = `${top}px`;
   prioritySelectPopover.classList.remove("hidden");
 
   AppState.ui.activePriorityPropertyContext = { callback };
@@ -2228,7 +2246,7 @@ function renderScopedTodo(events, targetSub, isRoot) {
 function createTodoItemRow(item) {
   const row = document.createElement("div");
   row.className = `todo-item-row ${item.completed ? 'completed' : ''} group cursor-pointer`;
-  
+
   const sub = AppState.studies.categories.find(s => s.id === item.categoryId);
   const tagLabel = sub ? sub.title : "Task";
   const colorKey = item.color || "gray";
@@ -2660,7 +2678,7 @@ function openUniversalAddModal(preselectedCatId = null) {
 
   if (universalDestSelect) {
     universalDestSelect.innerHTML = "";
-    
+
     const studyGroup = document.createElement("optgroup");
     studyGroup.label = "📚 Studies Workspace";
     AppState.studies.categories.forEach(sub => {
@@ -2839,7 +2857,7 @@ function initPomodoroTimer() {
       if (AppState.ui.pomo.running) {
         pomoToggleBtn.innerHTML = `<i data-lucide="pause" class="w-3.5 h-3.5"></i>`;
         if (pomoActiveDot) pomoActiveDot.classList.add("animate-pulse", "shadow-sm");
-        
+
         AppState.ui.pomo.interval = setInterval(() => {
           if (AppState.ui.pomo.remainingSeconds > 0) {
             AppState.ui.pomo.remainingSeconds--;
@@ -3071,7 +3089,7 @@ function renderUpcomingDeadlines() {
 
     const card = document.createElement("div");
     card.className = "p-2.5 rounded-xl bg-[var(--bg-canvas)] border border-[var(--border-subtle)] hover:border-[var(--border-hover)] cursor-pointer transition-all flex items-center justify-between gap-2 group";
-    
+
     card.innerHTML = `
       <div class="truncate mr-2">
         <div class="flex items-center gap-1.5 mb-1">
@@ -3332,7 +3350,7 @@ function renderExamRevisionSheet() {
   examEvents.forEach(exam => {
     const card = document.createElement("div");
     card.className = "exam-revision-card space-y-2.5";
-    
+
     if (!exam.meta) exam.meta = {};
     if (!exam.meta.papers) exam.meta.papers = { "2023": false, "2024": false, "2025": false };
     const confidence = exam.meta.confidence || "Medium";
@@ -3559,10 +3577,10 @@ function createCalendarCell(dayNumber, dateStr, isOtherMonth, isToday, events, c
   events.forEach(evt => {
     const pill = document.createElement("div");
     const colorKey = evt.color || (evt.module === 'dayschool' ? 'blue' : evt.module === 'viva' ? 'purple' : evt.module === 'assignment' ? 'orange' : evt.module === 'exam' ? 'red' : 'green');
-    
+
     const isSpan = evt.isRange && evt.endDate && evt.endDate !== evt.date;
     pill.className = `event-pill ${isSpan ? 'span-pill' : ''} notion-tag-${colorKey}`;
-    
+
     const timeStr = evt.includeTime && evt.startTime ? `${evt.startTime} ` : '';
     pill.textContent = `${timeStr}${evt.title || 'Untitled'}`;
     pill.title = `${evt.title || 'Untitled'}`;
@@ -3716,7 +3734,7 @@ function openPageModal(eventOrDate) {
 
   pageTitleInput.value = p.title || "";
   setModalColorSwatches(p.color || "purple");
-  
+
   const sub = AppState.studies.categories.find(s => s.id === p.categoryId);
   const badgeLabel = sub ? sub.title : (p.module || "Study Item");
   updatePageModalBadge(badgeLabel, p.color || "purple");
@@ -3754,9 +3772,9 @@ function setModalColorSwatches(selectedColor) {
   const swatches = pageColorPicker.querySelectorAll("button[data-color]");
   swatches.forEach(swatch => {
     if (swatch.getAttribute("data-color") === selectedColor) {
-      swatch.classList.add("ring-2", "ring-offset-1", "ring-offset-[var(--bg-surface)]", "ring-[var(--text-primary)]");
+      swatch.classList.add("active-swatch");
     } else {
-      swatch.classList.remove("ring-2", "ring-offset-1", "ring-offset-[var(--bg-surface)]", "ring-[var(--text-primary)]");
+      swatch.classList.remove("active-swatch");
     }
   });
 }
@@ -3897,7 +3915,7 @@ function renderDynamicProperties() {
       const tagColor = prop.color || "gray";
       const tagText = prop.value || "Empty";
       valueMarkup = `
-        <div class="select-prop-trigger notion-tag-${tagColor} px-2 py-0.5 rounded text-[11px] font-medium cursor-pointer flex items-center gap-1.5" data-prop-idx="${index}">
+        <div class="select-prop-trigger notion-tag-${tagColor} px-2 py-0.5 rounded text-[11.5px] font-medium cursor-pointer flex items-center gap-1.5" data-prop-idx="${index}">
           <span>${escapeHtml(tagText)}</span>
           <i data-lucide="chevron-down" class="w-3 h-3 opacity-60"></i>
         </div>
@@ -3923,7 +3941,7 @@ function renderDynamicProperties() {
       const driveVal = prop.value || "";
       valueMarkup = `
         <div class="flex items-center gap-1.5 w-full">
-          <input type="url" placeholder="Paste Google Drive / Resource Link..." value="${escapeHtml(driveVal)}" class="notion-property-input text-[11px] font-mono text-blue-500" data-prop-idx="${index}" />
+          <input type="url" placeholder="Paste Google Drive / Resource Link..." value="${escapeHtml(driveVal)}" class="notion-ghost-input text-blue-600 dark:text-blue-400" data-prop-idx="${index}" />
           ${driveVal ? `
             <a href="${driveVal}" target="_blank" rel="noopener noreferrer" class="drive-link-badge shrink-0" title="Open in Google Drive">
               <i data-lucide="hard-drive" class="w-3 h-3"></i>
@@ -3936,18 +3954,18 @@ function renderDynamicProperties() {
       const numVal = parseInt(prop.value) || 0;
       valueMarkup = `
         <div class="flex items-center gap-3 w-full">
-          <input type="number" min="0" max="100" value="${numVal}" class="notion-property-input font-mono w-16" data-prop-idx="${index}" />
+          <input type="number" min="0" max="100" value="${numVal}" class="notion-ghost-input w-16 text-center" data-prop-idx="${index}" />
           <div class="w-24 bg-[var(--border-subtle)] rounded-full h-1.5 overflow-hidden">
             <div class="bg-emerald-500 h-1.5 rounded-full" style="width: ${Math.min(100, numVal)}%"></div>
           </div>
-          <span class="text-[11px] text-[var(--text-muted)] font-mono">%</span>
+          <span class="text-[11px] text-[var(--text-muted)]">%</span>
         </div>
       `;
     } else if (prop.type === "url") {
       const urlVal = prop.value || "";
       valueMarkup = `
         <div class="flex items-center gap-1.5 w-full">
-          <input type="url" placeholder="https://..." value="${escapeHtml(urlVal)}" class="notion-property-input" data-prop-idx="${index}" />
+          <input type="url" placeholder="https://..." value="${escapeHtml(urlVal)}" class="notion-ghost-input text-sky-600 dark:text-sky-400" data-prop-idx="${index}" />
           ${urlVal ? `<a href="${urlVal}" target="_blank" rel="noopener noreferrer" class="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"><i data-lucide="external-link" class="w-3.5 h-3.5"></i></a>` : ''}
         </div>
       `;
@@ -3955,7 +3973,7 @@ function renderDynamicProperties() {
       const fileVal = prop.value || "";
       valueMarkup = `
         <div class="flex items-center gap-1.5 w-full">
-          <input type="url" placeholder="Drive / File URL..." value="${escapeHtml(fileVal)}" class="notion-property-input" data-prop-idx="${index}" />
+          <input type="url" placeholder="Drive / File URL..." value="${escapeHtml(fileVal)}" class="notion-ghost-input" data-prop-idx="${index}" />
           ${fileVal ? `<a href="${fileVal}" target="_blank" rel="noopener noreferrer" class="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"><i data-lucide="external-link" class="w-3.5 h-3.5"></i></a>` : ''}
         </div>
       `;
@@ -3967,7 +3985,7 @@ function renderDynamicProperties() {
       const emailVal = prop.value || "";
       valueMarkup = `
         <div class="flex items-center gap-1.5 w-full">
-          <input type="email" placeholder="name@domain.com" value="${escapeHtml(emailVal)}" class="notion-property-input" data-prop-idx="${index}" />
+          <input type="email" placeholder="name@domain.com" value="${escapeHtml(emailVal)}" class="notion-ghost-input" data-prop-idx="${index}" />
           ${emailVal ? `<a href="mailto:${emailVal}" class="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"><i data-lucide="send" class="w-3.5 h-3.5"></i></a>` : ''}
         </div>
       `;
@@ -3975,7 +3993,7 @@ function renderDynamicProperties() {
       const phoneVal = prop.value || "";
       valueMarkup = `
         <div class="flex items-center gap-1.5 w-full">
-          <input type="tel" placeholder="+1 (555) 000-0000" value="${escapeHtml(phoneVal)}" class="notion-property-input font-mono" data-prop-idx="${index}" />
+          <input type="tel" placeholder="+1 (555) 000-0000" value="${escapeHtml(phoneVal)}" class="notion-ghost-input text-indigo-600 dark:text-indigo-400" data-prop-idx="${index}" />
           ${phoneVal ? `<a href="tel:${phoneVal}" class="p-1 text-[var(--text-muted)] hover:text-indigo-400" title="Click to call"><i data-lucide="phone" class="w-3.5 h-3.5"></i></a>` : ''}
         </div>
       `;
@@ -4033,7 +4051,7 @@ function renderDynamicProperties() {
       });
     }
 
-    const inputEl = row.querySelector(".notion-property-input, input[type='checkbox']");
+    const inputEl = row.querySelector(".notion-ghost-input, input[type='checkbox']");
     if (inputEl) {
       if (inputEl.type === "checkbox") {
         inputEl.addEventListener("change", (e) => {
@@ -4078,8 +4096,13 @@ function openStatusDropdownPopover(triggerEl, propIndex) {
   if (!statusDropdownPopover) return;
 
   const rect = triggerEl.getBoundingClientRect();
-  statusDropdownPopover.style.left = `${Math.min(window.innerWidth - 270, rect.left)}px`;
-  statusDropdownPopover.style.top = `${Math.min(window.innerHeight - 300, rect.bottom + 4)}px`;
+  const popoverWidth = 260;
+  const popoverHeight = 300;
+  const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, rect.left));
+  const top = Math.max(10, Math.min(window.innerHeight - popoverHeight - 10, rect.bottom + 4));
+
+  statusDropdownPopover.style.left = `${left}px`;
+  statusDropdownPopover.style.top = `${top}px`;
   statusDropdownPopover.classList.remove("hidden");
 
   statusSearchInput.value = "";
@@ -4104,7 +4127,7 @@ function renderStatusOptionsList(filterQuery = "") {
   matched.forEach(opt => {
     const row = document.createElement("div");
     row.className = "notion-popover-row group";
-    
+
     row.innerHTML = `
       <div class="flex items-center gap-2 truncate">
         <span class="px-2 py-0.5 rounded text-[11px] font-medium notion-tag-${opt.color || 'gray'} truncate">${escapeHtml(opt.name)}</span>
@@ -4143,7 +4166,7 @@ function renderStatusOptionsList(filterQuery = "") {
     const createRow = document.createElement("div");
     createRow.className = "notion-popover-row text-xs text-[var(--text-secondary)] flex items-center gap-1.5";
     createRow.innerHTML = `<span>+ Create</span> <span class="px-2 py-0.5 rounded text-[10px] notion-tag-gray font-medium">${escapeHtml(filterQuery)}</span>`;
-    
+
     createRow.addEventListener("click", () => {
       const newStatus = {
         id: "st_" + Date.now(),
@@ -4163,7 +4186,7 @@ function renderStatusOptionsList(filterQuery = "") {
           renderDynamicProperties();
         }
       }
-      
+
       openStatusColorSubmenu(createRow, newStatus);
       showToast(`Created status "${newStatus.name}"`, "success");
     });
@@ -4186,8 +4209,13 @@ function openStatusColorSubmenu(btnEl, option) {
   if (!statusColorSubmenu) return;
 
   const rect = btnEl.getBoundingClientRect();
-  statusColorSubmenu.style.left = `${Math.min(window.innerWidth - 200, rect.right + 4)}px`;
-  statusColorSubmenu.style.top = `${Math.min(window.innerHeight - 280, rect.top)}px`;
+  const popoverWidth = 190;
+  const popoverHeight = 280;
+  const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, rect.right + 4));
+  const top = Math.max(10, Math.min(window.innerHeight - popoverHeight - 10, rect.top));
+
+  statusColorSubmenu.style.left = `${left}px`;
+  statusColorSubmenu.style.top = `${top}px`;
   statusColorSubmenu.classList.remove("hidden");
 
   renderStatusColorOptions();
@@ -4420,8 +4448,13 @@ function openTagSelectPopover(triggerEl, propIndex) {
   if (!tagSelectPopover) return;
 
   const rect = triggerEl.getBoundingClientRect();
-  tagSelectPopover.style.left = `${Math.min(window.innerWidth - 270, rect.left)}px`;
-  tagSelectPopover.style.top = `${Math.min(window.innerHeight - 300, rect.bottom + 4)}px`;
+  const popoverWidth = 260;
+  const popoverHeight = 300;
+  const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, rect.left));
+  const top = Math.max(10, Math.min(window.innerHeight - popoverHeight - 10, rect.bottom + 4));
+
+  tagSelectPopover.style.left = `${left}px`;
+  tagSelectPopover.style.top = `${top}px`;
   tagSelectPopover.classList.remove("hidden");
 
   tagSearchInput.value = "";
@@ -4446,7 +4479,7 @@ function renderTagOptionsList(filterQuery = "") {
   matched.forEach(opt => {
     const row = document.createElement("div");
     row.className = "notion-popover-row group";
-    
+
     row.innerHTML = `
       <div class="flex items-center gap-2 truncate">
         <span class="px-2 py-0.5 rounded text-[11px] font-medium notion-tag-${opt.color || 'gray'} truncate">${escapeHtml(opt.name)}</span>
@@ -4482,7 +4515,7 @@ function renderTagOptionsList(filterQuery = "") {
     const createRow = document.createElement("div");
     createRow.className = "notion-popover-row text-xs text-[var(--text-secondary)] flex items-center gap-1.5";
     createRow.innerHTML = `<span>+ Create</span> <span class="px-1.5 py-0.5 rounded text-[10px] notion-tag-gray font-medium">${escapeHtml(filterQuery)}</span>`;
-    
+
     createRow.addEventListener("click", () => {
       const newOpt = {
         id: "opt_" + Date.now(),
@@ -4522,8 +4555,13 @@ function openTagColorSubmenu(btnEl, option) {
   if (!tagColorSubmenu) return;
 
   const rect = btnEl.getBoundingClientRect();
-  tagColorSubmenu.style.left = `${Math.min(window.innerWidth - 200, rect.right + 4)}px`;
-  tagColorSubmenu.style.top = `${Math.min(window.innerHeight - 280, rect.top)}px`;
+  const popoverWidth = 190;
+  const popoverHeight = 280;
+  const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, rect.right + 4));
+  const top = Math.max(10, Math.min(window.innerHeight - popoverHeight - 10, rect.top));
+
+  tagColorSubmenu.style.left = `${left}px`;
+  tagColorSubmenu.style.top = `${top}px`;
   tagColorSubmenu.classList.remove("hidden");
 
   renderTagColorOptions();
@@ -4591,8 +4629,13 @@ function openPropertyContextMenu(x, y, propId, propIndex) {
   AppState.ui.activePropertyContextMenu = { propId, propIndex };
   if (!propertyContextMenu) return;
 
-  propertyContextMenu.style.left = `${Math.min(window.innerWidth - 200, x + 5)}px`;
-  propertyContextMenu.style.top = `${Math.min(window.innerHeight - 150, y + 5)}px`;
+  const popoverWidth = 180;
+  const popoverHeight = 150;
+  const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, x + 5));
+  const top = Math.max(10, Math.min(window.innerHeight - popoverHeight - 10, y + 5));
+
+  propertyContextMenu.style.left = `${left}px`;
+  propertyContextMenu.style.top = `${top}px`;
   propertyContextMenu.classList.remove("hidden");
 }
 
@@ -4656,6 +4699,68 @@ if (ctxDeletePropBtn) {
   });
 }
 
+// Mobile Sidebar Navigation & Responsive Drawer Control
+function openMobileSidebar() {
+  const sidebar = document.getElementById("appSidebar");
+  const backdrop = document.getElementById("sidebarBackdrop");
+  if (sidebar) sidebar.classList.add("sidebar-open");
+  if (backdrop) backdrop.classList.remove("hidden");
+}
+
+function closeMobileSidebar() {
+  const sidebar = document.getElementById("appSidebar");
+  const backdrop = document.getElementById("sidebarBackdrop");
+  if (sidebar) sidebar.classList.remove("sidebar-open");
+  if (backdrop) backdrop.classList.add("hidden");
+}
+
+function toggleSidebar() {
+  if (window.innerWidth < 768) {
+    const sidebar = document.getElementById("appSidebar");
+    if (sidebar && sidebar.classList.contains("sidebar-open")) {
+      closeMobileSidebar();
+    } else {
+      openMobileSidebar();
+    }
+  } else {
+    const sidebar = document.getElementById("appSidebar");
+    if (sidebar) {
+      sidebar.classList.toggle("sidebar-collapsed");
+    }
+  }
+}
+
+function initSidebarResponsive() {
+  const sidebarToggleBtn = document.getElementById("sidebarToggleBtn");
+  const mobileSidebarCloseBtn = document.getElementById("mobileSidebarCloseBtn");
+  const sidebarBackdrop = document.getElementById("sidebarBackdrop");
+
+  if (sidebarToggleBtn) {
+    sidebarToggleBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleSidebar();
+    });
+  }
+
+  if (mobileSidebarCloseBtn) {
+    mobileSidebarCloseBtn.addEventListener("click", () => {
+      closeMobileSidebar();
+    });
+  }
+
+  if (sidebarBackdrop) {
+    sidebarBackdrop.addEventListener("click", () => {
+      closeMobileSidebar();
+    });
+  }
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth >= 768) {
+      closeMobileSidebar();
+    }
+  });
+}
+
 // ============================================================================
 // 20. APPLICATION BOOTSTRAP
 // ============================================================================
@@ -4682,6 +4787,7 @@ window.addEventListener("DOMContentLoaded", () => {
   initPomodoroTimer();
   renderHierarchicalSidebar();
   initHomeBottomWidgets();
+  initSidebarResponsive();
 
   // Connect Firebase Firestore Sync
   initFirebaseSync();

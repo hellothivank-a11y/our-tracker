@@ -2,7 +2,7 @@
 <html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Nexus — Studies Workspace & Master Calendar System</title>
   
   <!-- Inter Font -->
@@ -41,25 +41,28 @@
 </head>
 <body class="bg-[var(--bg-canvas)] text-[var(--text-primary)] min-h-screen flex flex-col antialiased selection:bg-purple-500 selection:text-white">
 
+  <!-- Mobile Sidebar Backdrop Overlay -->
+  <div id="sidebarBackdrop" class="sidebar-backdrop hidden"></div>
+
   <!-- Top App Bar / Universal Sticky Header -->
-  <header class="sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6 h-12 bg-[var(--header-bg)] backdrop-blur-md border-b border-[var(--border-subtle)] transition-colors">
-    <div class="flex items-center gap-3">
-      <button id="sidebarToggleBtn" class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] transition-colors" title="Toggle Sidebar">
+  <header class="sticky top-0 z-30 flex items-center justify-between px-3 sm:px-6 h-12 bg-[var(--header-bg)] backdrop-blur-md border-b border-[var(--border-subtle)] transition-colors">
+    <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+      <button id="sidebarToggleBtn" class="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] transition-colors shrink-0" title="Toggle Sidebar">
         <i data-lucide="menu" class="w-4 h-4"></i>
       </button>
       
-      <div class="flex items-center gap-2">
-        <div class="w-6 h-6 rounded-md bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white shadow-sm">
+      <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
+        <div class="w-6 h-6 rounded-md bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white shadow-sm shrink-0">
           <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
         </div>
-        <span class="font-semibold text-xs tracking-tight text-[var(--text-primary)] hidden sm:inline">Nexus Studies</span>
-        <span class="text-[var(--border-hover)] hidden sm:inline">/</span>
-        <span id="currentViewHeading" class="text-xs text-[var(--text-secondary)] font-medium">Today's Focus</span>
+        <span class="font-semibold text-xs tracking-tight text-[var(--text-primary)] hidden md:inline shrink-0">Nexus Studies</span>
+        <span class="text-[var(--border-hover)] hidden md:inline shrink-0">/</span>
+        <span id="currentViewHeading" class="text-xs text-[var(--text-secondary)] font-medium truncate max-w-[130px] sm:max-w-[200px] md:max-w-none">Today's Focus</span>
       </div>
     </div>
 
     <!-- Right Header Controls: Cloud Sync Status, Universal Add, Theme & Live Clock -->
-    <div class="flex items-center gap-2.5 sm:gap-3">
+    <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
       
       <!-- Cloud Sync Status Pill -->
       <div id="cloudSyncPill" class="cloud-sync-pill" title="Firebase Firestore Cloud Sync">
@@ -95,13 +98,26 @@
   </header>
 
   <!-- Main Body Split: Hierarchical Studies Sidebar & Dynamic View Stage -->
-  <div class="flex flex-1 overflow-hidden">
+  <div class="flex flex-1 overflow-hidden relative">
 
     <!-- ===================================================================== -->
     <!-- SIDEBAR: STRICTLY STUDIES DOMAIN & CORE HUB ONLY                       -->
     <!-- ===================================================================== -->
-    <aside id="appSidebar" class="w-64 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] flex flex-col justify-between shrink-0 transition-all duration-200 ease-in-out select-none">
+    <aside id="appSidebar" class="w-64 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] flex flex-col justify-between shrink-0 select-none">
       
+      <!-- Mobile Sidebar Header with Close Button (Visible on mobile screens) -->
+      <div class="md:hidden flex items-center justify-between px-3.5 py-2.5 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+        <div class="flex items-center gap-2">
+          <div class="w-5 h-5 rounded bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white text-[10px]">
+            <i data-lucide="sparkles" class="w-3 h-3"></i>
+          </div>
+          <span class="font-semibold text-xs text-[var(--text-primary)]">Nexus Navigation</span>
+        </div>
+        <button id="mobileSidebarCloseBtn" class="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)]" title="Close Sidebar">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
       <!-- Top Section: Core Hub & Dynamic Studies Categories -->
       <div class="p-3 space-y-4 overflow-y-auto flex-1">
         
@@ -739,8 +755,8 @@
   </div>
 
   <!-- Notion Page Modal (Full Feature Record Inspector) -->
-  <div id="pageModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-2 sm:p-4 animate-fade-in">
-    <div id="pageModalCard" class="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden transition-all duration-200">
+  <div id="pageModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 animate-fade-in">
+    <div id="pageModalCard" class="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden transition-all duration-200">
       
       <!-- Modal Top Action Bar -->
       <div class="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)] shrink-0">
@@ -748,14 +764,14 @@
           <span id="pageModalBadge" class="text-xs px-2.5 py-0.5 rounded font-medium flex items-center gap-1.5 notion-tag-purple">
             <span id="pageModalBadgeText">Study Item</span>
           </span>
-          <span class="text-[10px] text-[var(--text-muted)] font-mono" id="pageModalCreatedDate">Today</span>
+          <span class="text-xs text-[var(--text-muted)] font-normal" id="pageModalCreatedDate">Today</span>
         </div>
 
         <div class="flex items-center gap-1">
-          <button type="button" id="expandPageModalBtn" class="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)]" title="Expand Fullscreen">
+          <button type="button" id="expandPageModalBtn" class="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] transition-colors" title="Expand Fullscreen">
             <i data-lucide="maximize-2" class="w-4 h-4"></i>
           </button>
-          <button type="button" id="closePageModalBtn" class="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)]" title="Close Modal (Esc)">
+          <button type="button" id="closePageModalBtn" class="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] transition-colors" title="Close Modal (Esc)">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
@@ -764,16 +780,16 @@
       <!-- Modal Body (Scrollable) -->
       <div class="flex-1 overflow-y-auto pr-1 py-4 space-y-5">
         
-        <!-- Editable Page Title -->
+        <!-- Editable Page Title (Large Clean Notion Ghost Header) -->
         <div>
-          <input type="text" id="pageTitleInput" placeholder="Untitled Study Entry" class="w-full bg-transparent text-xl sm:text-2xl font-bold text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none tracking-tight" />
+          <input type="text" id="pageTitleInput" placeholder="Untitled Study Entry" class="notion-page-title-input" />
         </div>
 
-        <!-- Notion Pastel Color Swatches -->
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-[var(--text-muted)] w-24">Color Tag:</span>
-          <div id="pageColorPicker" class="flex items-center gap-1.5 flex-wrap">
-            <button type="button" data-color="gray" class="notion-swatch-sq gray" title="Gray"></button>
+        <!-- Notion Pastel Color Swatches (Soft Rounded Rectangles) -->
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-medium text-[var(--text-muted)] w-24 shrink-0">Color Tag:</span>
+          <div id="pageColorPicker" class="flex items-center gap-2 flex-wrap">
+            <button type="button" data-color="gray" class="notion-swatch-sq gray" title="Default / Gray"></button>
             <button type="button" data-color="brown" class="notion-swatch-sq brown" title="Brown"></button>
             <button type="button" data-color="orange" class="notion-swatch-sq orange" title="Orange"></button>
             <button type="button" data-color="yellow" class="notion-swatch-sq yellow" title="Yellow"></button>
@@ -785,27 +801,27 @@
           </div>
         </div>
 
-        <!-- Date / Multi-Day Span Picker -->
+        <!-- Date / Multi-Day Span & Time Picker (Minimal Notion Style) -->
         <div class="space-y-2 pt-2 border-t border-[var(--border-subtle)]">
           <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
             <div class="flex items-center gap-2">
               <i data-lucide="calendar" class="w-4 h-4 text-[var(--text-muted)]"></i>
-              <span class="text-xs text-[var(--text-muted)] w-20">Date:</span>
-              <input type="date" id="pageStartDateInput" class="bg-[var(--bg-canvas)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1 text-xs text-[var(--text-primary)] font-mono outline-none" />
+              <span class="text-xs font-medium text-[var(--text-muted)] w-20">Date:</span>
+              <input type="date" id="pageStartDateInput" class="notion-date-pill-input" />
             </div>
 
             <div id="pageEndDateWrapper" class="items-center gap-2" style="display: none;">
               <span class="text-xs text-[var(--text-muted)]">➔</span>
-              <input type="date" id="pageEndDateInput" class="bg-[var(--bg-canvas)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1 text-xs text-[var(--text-primary)] font-mono outline-none" />
+              <input type="date" id="pageEndDateInput" class="notion-date-pill-input" />
             </div>
           </div>
 
           <div class="flex items-center gap-4 pl-6 text-xs text-[var(--text-secondary)]">
-            <label class="flex items-center gap-1.5 cursor-pointer">
+            <label class="flex items-center gap-1.5 cursor-pointer select-none">
               <input type="checkbox" id="pageToggleRange" class="custom-checkbox" />
               <span>Multi-Day Span</span>
             </label>
-            <label class="flex items-center gap-1.5 cursor-pointer">
+            <label class="flex items-center gap-1.5 cursor-pointer select-none">
               <input type="checkbox" id="pageToggleTime" class="custom-checkbox" />
               <span>Include Time</span>
             </label>
@@ -813,16 +829,16 @@
 
           <!-- Time Pickers -->
           <div id="pageTimePickerRow" class="hidden flex items-center gap-2 pl-6 pt-1">
-            <input type="time" id="pageStartTimeInput" class="bg-[var(--bg-canvas)] border border-[var(--border-subtle)] rounded-lg px-2 py-0.5 text-xs text-[var(--text-primary)] font-mono outline-none" />
+            <input type="time" id="pageStartTimeInput" class="notion-date-pill-input" />
             <span class="text-xs text-[var(--text-muted)]">to</span>
-            <input type="time" id="pageEndTimeInput" class="bg-[var(--bg-canvas)] border border-[var(--border-subtle)] rounded-lg px-2 py-0.5 text-xs text-[var(--text-primary)] font-mono outline-none" />
+            <input type="time" id="pageEndTimeInput" class="notion-date-pill-input" />
           </div>
 
           <!-- Reminders -->
           <div class="flex items-center gap-2 pl-6 pt-1">
             <i data-lucide="bell" class="w-3.5 h-3.5 text-[var(--text-muted)]"></i>
-            <span class="text-xs text-[var(--text-muted)]">Reminder:</span>
-            <select id="pageReminderSelect" class="bg-[var(--bg-canvas)] border border-[var(--border-subtle)] rounded-lg px-2 py-0.5 text-xs text-[var(--text-secondary)] outline-none cursor-pointer">
+            <span class="text-xs font-medium text-[var(--text-muted)]">Reminder:</span>
+            <select id="pageReminderSelect" class="bg-transparent text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] px-2 py-0.5 rounded outline-none cursor-pointer transition-colors border-none">
               <option value="none">None</option>
               <option value="at_time">At time of event</option>
               <option value="5_min">5 minutes before</option>
@@ -833,9 +849,9 @@
         </div>
 
         <!-- Dynamic Notion-Style Properties Schema List -->
-        <div class="pt-2 border-t border-[var(--border-subtle)] space-y-2">
-          <div class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Properties</div>
-          <div id="dynamicPropertiesList" class="space-y-1"></div>
+        <div class="pt-2 border-t border-[var(--border-subtle)] space-y-1.5">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-1">Properties</div>
+          <div id="dynamicPropertiesList" class="space-y-0.5"></div>
 
           <!-- + Add Property Dropdown -->
           <div class="relative pt-1">
@@ -845,7 +861,7 @@
             </button>
 
             <!-- Property Type Menu -->
-            <div id="propertyTypeMenu" class="hidden absolute left-0 top-8 z-40 w-52 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl p-1.5 shadow-2xl space-y-0.5 animate-fade-in">
+            <div id="propertyTypeMenu" class="hidden absolute left-0 top-8 z-40 w-52 bg-[var(--bg-popover)] border border-[var(--border-subtle)] rounded-xl p-1.5 shadow-2xl space-y-0.5 animate-fade-in">
               <button type="button" class="add-prop-type-btn w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--row-hover)] text-left" data-type="select">
                 <i data-lucide="chevron-down-circle" class="w-3.5 h-3.5 text-pink-500"></i>
                 <span>Select Tag</span>
@@ -890,28 +906,26 @@
           </div>
         </div>
 
-        <!-- Notes / Study Comments Section -->
+        <!-- Notes / Study Comments Section (Seamless Textarea) -->
         <div class="pt-4 border-t border-[var(--border-subtle)] space-y-2">
-          <div class="flex items-center gap-2">
-            <div class="w-5 h-5 rounded-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] flex items-center justify-center text-[10px] text-[var(--text-primary)] font-bold">
-              S
-            </div>
-            <span class="text-xs font-medium text-[var(--text-secondary)]">Notes & Key Formulas</span>
+          <div class="flex items-center gap-2 px-1">
+            <i data-lucide="align-left" class="w-4 h-4 text-[var(--text-muted)]"></i>
+            <span class="text-xs font-semibold text-[var(--text-secondary)]">Notes & Key Formulas</span>
           </div>
-          <textarea id="pageNotesTextarea" placeholder="Add notes, tasks breakdown, or lecture key points..." rows="4" class="w-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] rounded-xl p-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-hover)] resize-none"></textarea>
+          <textarea id="pageNotesTextarea" placeholder="Add notes, breakdown, formulas, or lecture key points..." rows="4" class="notion-notes-textarea"></textarea>
         </div>
 
       </div>
 
       <!-- Footer Action Bar -->
       <div class="flex items-center justify-between pt-3 border-t border-[var(--border-subtle)] mt-2 shrink-0">
-        <button type="button" id="deletePageItemBtn" class="flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 px-2 py-1 rounded hover:bg-rose-500/10 transition-colors">
+        <button type="button" id="deletePageItemBtn" class="flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 px-2.5 py-1 rounded-md hover:bg-rose-500/10 transition-colors">
           <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
           <span>Delete Entry</span>
         </button>
-        <div class="flex items-center gap-2">
-          <span class="text-[11px] text-[var(--text-muted)]">Changes auto-saved</span>
-          <button type="button" id="donePageModalBtn" class="bg-zinc-900 text-white hover:bg-black dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors shadow-sm">
+        <div class="flex items-center gap-3">
+          <span class="text-[11px] text-[var(--text-muted)] font-normal">Changes auto-saved</span>
+          <button type="button" id="donePageModalBtn" class="bg-zinc-900 text-white hover:bg-black dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 text-xs font-medium px-4 py-1.5 rounded-lg transition-colors shadow-sm">
             Done
           </button>
         </div>
